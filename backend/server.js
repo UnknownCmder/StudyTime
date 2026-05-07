@@ -15,6 +15,7 @@ const index = require('./routes/index');
 const login = require('./routes/login');
 
 app.use('/', index);
+app.use('api/singup', si)
 app.use('/api/login', login); // Use the login route for handling login requests
 
 app.listen(port, () => {
