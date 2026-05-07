@@ -37,45 +37,46 @@ function toggleSidebar() {
       <div id="btnLogin">로그인</div>
     </header>
 
-    <div class="container">
-      <nav id="sidebar" class="sidebar" :class="{ closed: !isSidebarOpen }">
-        <ul class="menu-list">
-          <li v-for="site in sidebarList" :key="site">
-            <RouterLink :to="site.path">{{ site.name }}</RouterLink>
-          </li>
-        </ul>
-      </nav>
+    <nav id="sidebar" class="sidebar" :class="{ closed: !isSidebarOpen }">
+      <ul class="menu-list">
+        <li v-for="site in sidebarList" :key="site">
+          <RouterLink :to="site.path">{{ site.name }}</RouterLink>
+        </li>
+      </ul>
+    </nav>
 
-      <main class="main-content">
-        <RouterView />
-      </main>
-    </div>
+    <main class="main-content">
+      <RouterView />
+    </main>
   </div>
 </template>
 
 <style scoped>
 /* 기본 초기화 */
 .app {
-  width: 100%;
+  width: 100vw;
+  height: 100vh;
   max-width: none;
-  min-height: 100%;
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    color: white;
-    font-family: 'Arial', sans-serif;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden; /* 스크롤바 관리 */
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  color: white;
+  font-family: 'Arial', sans-serif;
+  overflow: hidden; /* 스크롤바 관리 */
+
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  grid-template-rows: 60px 1fr;
 }
 
 /* --- 상단 헤더 스타일 --- */
 .header {
+  grid-column: 1 / -1;
+  grid-row: 1 / 2;
+
+    display: flex;
     background-color: #333;
     color: white;
-    height: 60px;
-    display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 20px;
@@ -87,6 +88,26 @@ function toggleSidebar() {
     align-items: center;
     gap: 15px;
 }
+
+.logo {
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+#btnLogin {
+    cursor: pointer;
+    font-weight: bold;
+    padding: 8px 15px;
+    border-radius: 4px;
+    background-color: #555;
+    transition: background-color 0.3s ease;
+}
+
+#btnLogin:hover {
+    background-color: #777;
+}
+
 
 .btn-sidebar {
     background: none;
@@ -101,23 +122,20 @@ function toggleSidebar() {
     color: #ddd;
 }
 
-/* --- 레이아웃 컨테이너 (사이드바 + 메인) --- */
-.container {
-    display: flex;
-    flex: 1; /* 남은 높이 모두 차지 */
-    position: relative;
-    overflow: hidden;
-}
+
 
 /* --- 왼쪽 사이드바 스타일 --- */
 .sidebar {
-    width: 250px;
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+    height: 100%;
     background-color: #555;
     border-right: 1px solid #ddd;
-    transition: all 0.3s ease; /* 부드러운 이동 효과 */
+    transition: transform 0.3s ease; /* 부드러운 이동 효과 */
+    overflow-y: auto;
     
     /* 사이드바가 접혔을 때를 위한 설정 */
-    margin-left: 0; 
+    transform: translateX(0); 
 }
 
 /* 사이드바 메뉴 스타일 */
@@ -142,7 +160,8 @@ function toggleSidebar() {
 
 /* --- 메인 콘텐츠 스타일 --- */
 .main-content {
-    flex: 1; /* 남은 너비 모두 차지 */
+    grid-row: 2 / 3;
+    grid-column: 2 / 3;
     padding: 20px;
     overflow-y: auto; /* 내용이 많으면 스크롤 */
     background-color: #fff;
@@ -150,9 +169,9 @@ function toggleSidebar() {
 
 /* --- [핵심 기능] 사이드바 토글 상태 --- */
 
-/* 1. 사이드바가 닫혔을 때 (active 클래스가 붙으면 숨김) */
+/* 1. 사이드바가 닫혔을 때 */
 .sidebar.closed {
-    margin-left: -250px; /* 너비만큼 왼쪽으로 이동하여 숨김 */
+    transform: translateX(-250px); /* 너비만큼 왼쪽으로 이동하여 숨김 */
 }
 
 /* --- 반응형 (모바일) --- */
