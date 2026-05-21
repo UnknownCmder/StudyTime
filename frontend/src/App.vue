@@ -1,16 +1,20 @@
 <script setup>
-import { ref } from 'vue'
-import { RouterLink, RouterView } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { useAuth } from './composables/useAuth'
 
 const sidebarList = [
-  { name: '홈', path: '/' },
-  { name: '스탑워치', path: '/about' },
-  { name: '시간표', path: '/about' },
-  { name: '공부기록', path: '/about' },
-  { name: '설정', path: '/about' },
+    { name: '홈', path: '/' },
+    { name: '스탑워치', path: '/about' },
+    { name: '시간표', path: '/about' },
+    { name: '공부기록', path: '/about' },
+    { name: '설정', path: '/about' },
 ]
 
 const isSidebarOpen = ref(true)
+const sidebarRef = ref(null)
+const router = useRouter()
+const { isLoggedIn, isLoginLoading, fetchLoginStatus, logout } = useAuth()
 
 function toggleSidebar() {
   // 현재 화면 너비 확인
@@ -18,61 +22,82 @@ function toggleSidebar() {
 
     if (isMobile) {
         // 모바일: 'mobile-open' 클래스를 토글하여 메뉴를 보여주거나 숨김
-        sidebar.classList.toggle('mobile-open');
+        sidebarRef.value?.classList.toggle('mobile-open');
     } else {
         // 데스크탑: 'closed' 클래스를 토글하여 메뉴를 옆으로 밀어넣거나 뺌
         isSidebarOpen.value = !isSidebarOpen.value;
     }
 }
+
+async function handleAuthButtonClick() {
+    if (!isLoggedIn.value) {
+        router.push('/signin')
+        return
+    }
+
+    try {
+        const isLoggedOut = await logout()
+
+        if (isLoggedOut) {
+            router.push('/')
+        }
+    } catch (error) {
+        console.error('로그아웃 실패:', error)
+    }
+}
+
+onMounted(fetchLoginStatus)
 </script>
 
 <template>
-  <div class="app">
+    <div class="app">
     <header class="header">
-      <div class="header-content">
+        <div class="header-content">
         <button id="btnSidebar" class="btn-sidebar" @click="toggleSidebar">
-          ☰ </button>
+            ☰ </button>
         <h1 class="logo">StudyTime</h1>
-      </div>
-      <div id="btnLogin">로그인</div>
+        </div>
+        <button id="btnLogin" type="button" :disabled="isLoginLoading" @click="handleAuthButtonClick">
+            {{ isLoggedIn ? '로그아웃' : '로그인' }}
+        </button>
     </header>
 
-    <nav id="sidebar" class="sidebar" :class="{ closed: !isSidebarOpen }">
-      <ul class="menu-list">
-        <li v-for="site in sidebarList" :key="site">
-          <RouterLink :to="site.path">{{ site.name }}</RouterLink>
+    <nav id="sidebar" ref="sidebarRef" class="sidebar" :class="{ closed: !isSidebarOpen }">
+        <ul class="menu-list">
+        <li v-for="site in sidebarList" :key="site.name">
+            <RouterLink :to="site.path">{{ site.name }}</RouterLink>
         </li>
-      </ul>
+        </ul>
     </nav>
 
     <main class="main-content">
-      <RouterView />
+        <RouterView />
     </main>
-  </div>
+    </div>
 </template>
 
 <style scoped>
 /* 기본 초기화 */
 .app {
-  width: 100vw;
-  height: 100vh;
-  max-width: none;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  color: white;
-  font-family: 'Arial', sans-serif;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    color: white;
+    font-family: 'Arial', sans-serif;
   overflow: hidden; /* 스크롤바 관리 */
 
-  display: grid;
-  grid-template-columns: 250px 1fr;
-  grid-template-rows: 60px 1fr;
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    grid-template-rows: 60px 1fr;
 }
 
 /* --- 상단 헤더 스타일 --- */
 .header {
-  grid-column: 1 / -1;
-  grid-row: 1 / 2;
+    grid-column: 1 / -1;
+    grid-row: 1 / 2;
 
     display: flex;
     background-color: #333;
@@ -96,16 +121,25 @@ function toggleSidebar() {
 }
 
 #btnLogin {
+    border: none;
+    color: white;
     cursor: pointer;
+    font: inherit;
     font-weight: bold;
     padding: 8px 15px;
     border-radius: 4px;
     background-color: #555;
+    text-decoration: none;
     transition: background-color 0.3s ease;
 }
 
 #btnLogin:hover {
     background-color: #777;
+}
+
+#btnLogin:disabled {
+    cursor: default;
+    opacity: 0.6;
 }
 
 
