@@ -2,7 +2,13 @@
 ## 기본 세팅 (초기 세팅)
 1. 코딩 애플 채널 튜토리얼에서 vue 다운 따라하기
 2. node.js 다운로드
-3. `npm install` 터미널에 입력
+3. frontend 폴더로 이동
+    - "cd .." : 상위 폴더로 이동 (ex : ../github/test -> ../github)
+    - "cd {폴더명}" : {폴더명}으로 이동
+4. 터미널에 `npm install` 입력
+5. bakcend 폴더로 이동
+6. 터미널에 `npm install` 입력
+
 ## 코드 실행법
 1. frontend 폴더로 이동
     - "cd .." : 상위 폴더로 이동 (ex : ../github/test -> ../github)
