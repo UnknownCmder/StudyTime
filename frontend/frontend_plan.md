@@ -6,7 +6,7 @@
     - "cd .." : 상위 폴더로 이동 (ex : ../github/test -> ../github)
     - "cd {폴더명}" : {폴더명}으로 이동
 4. 터미널에 `npm install` 입력
-5. bakcend 폴더로 이동
+5. backend 폴더로 이동
 6. 터미널에 `npm install` 입력
 
 ## 코드 실행법
