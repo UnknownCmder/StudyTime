@@ -32,7 +32,33 @@ onMounted(async () => {
 </script>
 
 <template>
-    <button id="btnLogin" type="button" :disabled="isLoginLoading || isLoggedIn" @click="handleLogin">
-        {{ isLoginLoading ? '로그인 중...' : '로그인' }}
-    </button>
+    <div clsass="wrapper">
+        <form action="">
+            <h1>login</h1>
+            <div class="id-input">
+                <input type="text" placeholder="Username"
+                required>
+            </div>
+            <div class="input-box">
+                <input type="Password" 
+                placeholder="Password" required>
+            </div>
+
+            <div class="remember-forgot">
+                <label><input type="checkbox"> Rememver me</label>
+                <a href="#">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="btn">Login</button>
+
+            <div class="register-lint">
+                <p>Don't have an account? <a
+                herf="#"></a></p>
+            </div>
+        </form>
+    </div>
 </template>
+
+<style>
+
+</style>
