@@ -101,11 +101,12 @@ onBeforeUnmount(() => {
         </button>
         <button
           type="button"
-          class="control-button pause-button"
-          :disabled="!stopwatchRunning"
-          @click="pauseStopwatch"
+          class="control-button"
+          :class="stopwatchStarted && !stopwatchRunning ? 'resume-button' : 'pause-button'"
+          :disabled="!stopwatchStarted"
+          @click="stopwatchRunning ? pauseStopwatch() : startStopwatch()"
         >
-          일시정지
+          {{ stopwatchStarted && !stopwatchRunning ? '재개' : '일시정지' }}
         </button>
       </div>
 
@@ -232,6 +233,10 @@ h1 {
 
 .pause-button {
   background: #b45309;
+}
+
+.resume-button {
+  background: #2563eb;
 }
 
 .lap-panel {
