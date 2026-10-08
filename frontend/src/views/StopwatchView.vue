@@ -78,7 +78,7 @@ onBeforeUnmount(() => {
     <section class="stopwatch-shell" aria-labelledby="stopwatch-title">
       <h1 id="stopwatch-title">스톱워치</h1>
 
-      <div class="time-display" role="timer" aria-live="polite" aria-atomic="true">
+      <div class="time" role="timer" aria-live="polite" aria-atomic="true">
         {{ stopwatchDisplay }}
       </div>
 
@@ -86,10 +86,10 @@ onBeforeUnmount(() => {
         <button
           type="button"
           class="control-button"
-          :class="stopwatchStarted ? 'reset-button' : 'start-button'"
+          :class="stopwatchStarted ? 'btnStop' : 'btnStart'"
           @click="stopwatchStarted ? resetStopwatch() : startStopwatch()"
         >
-          {{ stopwatchStarted ? '초기화' : '시작' }}
+          {{ stopwatchStarted ? '중지' : '시작' }}
         </button>
         <button
           type="button"
@@ -155,7 +155,7 @@ h1 {
   letter-spacing: 0.08em;
 }
 
-.time-display {
+.time {
   width: min(100%, 920px);
   box-sizing: border-box;
   padding: clamp(32px, 8vh, 76px) clamp(18px, 5vw, 56px);
@@ -219,11 +219,11 @@ h1 {
   opacity: 0.38;
 }
 
-.start-button {
+.btnStart {
   background: #15803d;
 }
 
-.reset-button {
+.btnStop {
   background: #b91c1c;
 }
 
@@ -283,7 +283,7 @@ h1 {
     margin-bottom: 24px;
   }
 
-  .time-display {
+  .time {
     padding: 38px 10px;
     border-radius: 18px;
     font-size: clamp(42px, 14vw, 68px);
