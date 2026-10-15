@@ -25,10 +25,10 @@
 ----
 # 로그인 페이지 (SigninView.vue)
 ## 요소
-- 아이디 입력 창 (class=id-input) [ ]
-- 비밀번호 입력 창 (class=pw-input) [ ]
-- 로그인 버튼 (class=btnSignin) [ ]
-- 회원가입 페이지로 가기 버튼 (class=btnGoSignup) [ ]
+- [ ] 아이디 입력 창 (class=id-input)
+- [ ] 비밀번호 입력 창 (class=pw-input)
+- [ ] 로그인 버튼 (class=btnSignin)
+- [ ] 회원가입 페이지로 가기 버튼 (class=btnGoSignup)
 
 ## 참고사항
 ### 아이디
@@ -39,10 +39,10 @@
 ----
 # 회원가입 페이지 (SingupView.vue)
 ## 요소
-- 아이디 입력 창 (class=id-input) [ ]
-- 이메일 입력 창 (class=email-input) [ ]
-- 비밀번호 입력 창 (class=pw-input) [ ]
-- 회원가입 버튼 (class=btnSignup) [ ]
+- [ ] 아이디 입력 창 (class=id-input)
+- [ ] 이메일 입력 창 (class=email-input)
+- [ ] 비밀번호 입력 창 (class=pw-input)
+- [ ] 회원가입 버튼 (class=btnSignup)
 
 ## 참고사항
 - 회원가입 
@@ -50,9 +50,9 @@
 ----
 # 스탑워치 페이지 (StopWatchView.vue)
 ## 요소
-- 흐른 시간 (class=time) [ ]
-- 시작 버튼 (class=btnStart) [ ]
-- 중지 버튼 (class=btnStop) [ ]
+- [ ] 흐른 시간 (class=time)
+- [ ] 시작 버튼 (class=btnStart)
+- [ ] 중지 버튼 (class=btnStop)
 
 ## 참고 사항
 ### 시작 버튼
@@ -64,9 +64,9 @@
 ----
 # 공부기록  (StudyRecordView.vue)
 ## 요소
-- 날짜 (O월 O주) (class=date) [ ]
-- 화살표 < (class=btnLeft), > (class=btnRight) [ ]
-- 7 * 48 크기의 표 (class=timetable) [ ]
+- [ ] 날짜 (O월 O주) (class=date)
+- [ ] 화살표 < (class=btnLeft), > (class=btnRight)
+- [ ] 7 * 48 크기의 표 (class=timetable)
 
 ## 참고 사항
 ### 날짜 및 화살표

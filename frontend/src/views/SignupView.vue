@@ -1,136 +1,130 @@
-<template>
-  <div class="page">
-    <!-- 회원가입 카드를 감싸는 박스, LoginForm과 동일 구조 -->
-    <div class="wrapper">
-      <h1>회원가입</h1>
-      <!-- 제출 시 새로고침 방지 후 handleSignup 실행 -->
-      <form @submit.prevent="handleSignup">
-        <div class="input-box">
-          <label for="signup-email">이메일</label>
-          <input
-            id="signup-email"
-            v-model="email"
-            type="email"
-            placeholder="you@example.com"
-            required
-          />
-        </div>
-
-        <div class="input-box">
-          <label for="signup-password">비밀번호</label>
-          <input
-            id="signup-password"
-            v-model="password"
-            type="password"
-            placeholder="비밀번호 입력"
-            required
-          />
-        </div>
-
-        <button type="submit" class="btn">회원가입하기</button>
-      </form>
-    </div>
-  </div>
-</template>
-
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
 
-// 입력값을 저장하는 반응형 변수 (email, password)
-const email = ref('')
+const router = useRouter()
+const { signup } = useAuth()
+const id = ref('')
 const password = ref('')
+const isSubmitting = ref(false)
+const errorMessage = ref('')
 
-// 회원가입 버튼 클릭 시 실행되는 함수: 실제 서비스에서는 이 안에서 회원가입 API를 호출
-function handleSignup() {
-  console.log('signup', { email: email.value, password: password.value })
+async function handleSignup() {
+    errorMessage.value = ''
+    isSubmitting.value = true
+
+    try {
+        // 아이디가 중복되지 않으면 서버가 비밀번호를 해싱해서 DB에 저장합니다.
+        await signup(id.value, password.value)
+        router.push('/signin')
+    } catch (error) {
+        console.error('회원가입 실패:', error)
+        errorMessage.value = error.message
+    } finally {
+        isSubmitting.value = false
+    }
 }
 </script>
 
+<template>
+    <section class="auth-page">
+        <form class="auth-form" @submit.prevent="handleSignup">
+            <h2>회원가입</h2>
+
+            <label class="input-group">
+                <span>아이디</span>
+                <input v-model.trim="id" type="text" autocomplete="username" required />
+            </label>
+
+            <label class="input-group">
+                <span>비밀번호</span>
+                <input v-model="password" type="password" autocomplete="new-password" required />
+            </label>
+
+            <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+
+            <button id="btnSignup" type="submit" :disabled="isSubmitting">
+                {{ isSubmitting ? '가입 중...' : '회원가입' }}
+            </button>
+
+            <RouterLink class="auth-link" to="/signin">로그인으로 이동</RouterLink>
+        </form>
+    </section>
+</template>
+
 <style scoped>
-/* 화면 전체를 채우고 카드를 중앙에 배치하는 배경 영역 */
-.page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-  padding: 24px;
-  box-sizing: border-box;
+.auth-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 120px);
+    color: #222;
 }
 
-/* 회원가입 폼을 감싸는 카드 박스 */
-.wrapper {
-  width: 100%;
-  max-width: 360px;
-  padding: 40px 32px;
-  border-radius: 24px;
-  background: #ffffff;
-  border: 1px solid #000000;
+.auth-form {
+    width: min(100%, 420px);
+    padding: 28px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
-h1 {
-  color: #000000;
-  text-align: center;
-  margin: 0 0 28px;
-  font-weight: 700;
-  font-size: 24px;
+.auth-form h2 {
+    margin-bottom: 24px;
+    font-size: 28px;
+    font-weight: 700;
 }
 
-.input-box {
-  margin-bottom: 16px;
+.input-group {
+    display: block;
+    margin-bottom: 16px;
 }
 
-.input-box label {
-  display: block;
-  color: #000000;
-  font-size: 12px;
-  margin-bottom: 6px;
+.input-group span {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 700;
 }
 
-/* 이메일/비밀번호 입력창 공통 스타일 */
-.input-box input {
-  width: 100%;
-  padding: 12px 14px;
-  box-sizing: border-box;
-  border: 1px solid #000000;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #000000;
-  font-size: 14px;
-  outline: none;
-  transition: box-shadow 0.2s;
+.input-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    color: #222;
+    font: inherit;
 }
 
-.input-box input::placeholder {
-  color: #888888;
+#btnSignup {
+    width: 100%;
+    margin-top: 8px;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    background: #333;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
 }
 
-/* 입력창 포커스 시 테두리 강조 링 표시 */
-.input-box input:focus {
-  box-shadow: 0 0 0 2px #000000;
+#btnSignup:disabled {
+    cursor: default;
+    opacity: 0.6;
 }
 
-/* 회원가입 버튼: 기본은 흰 배경, hover 시 색 반전으로 구분 */
-.btn {
-  width: 100%;
-  padding: 12px;
-  margin-top: 8px;
-  cursor: pointer;
-  border: 1px solid #000000;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #000000;
-  font-size: 15px;
-  font-weight: 700;
-  transition: background 0.2s, color 0.2s, transform 0.1s;
+.auth-link {
+    display: inline-block;
+    margin-top: 16px;
+    color: #333;
+    font-weight: 700;
 }
 
-.btn:hover {
-  background: #000000;
-  color: #ffffff;
-}
-
-.btn:active {
-  transform: scale(0.98);
+.error-message {
+    margin-bottom: 12px;
+    color: #c62828;
+    font-weight: 700;
 }
 </style>
