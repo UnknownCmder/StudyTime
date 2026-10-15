@@ -1,366 +1,305 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue'
 
-const timerMinutes = ref(5);
-const timerSeconds = ref(0);
-const timerRemaining = ref(300);
-const timerRunning = ref(false);
-let timerInterval = null;
+const stopwatchElapsed = ref(0)
+const stopwatchRunning = ref(false)
+const stopwatchStarted = ref(false)
+const laps = ref([])
 
-const stopwatchElapsed = ref(0);
-const stopwatchRunning = ref(false);
-const laps = ref([]);
-let stopwatchInterval = null;
-let stopwatchStartedAt = 0;
+let stopwatchInterval = null
+let stopwatchStartedAt = 0
 
-const timerDisplay = computed(() => formatTime(timerRemaining.value));
-const stopwatchDisplay = computed(() => formatTime(stopwatchElapsed.value, true));
+const stopwatchDisplay = computed(() => formatTime(stopwatchElapsed.value))
 
-function formatTime(millisecondsOrSeconds, includeMilliseconds = false) {
-    if (includeMilliseconds) {
-        const minutes = Math.floor(millisecondsOrSeconds / 60000);
-        const seconds = Math.floor((millisecondsOrSeconds % 60000) / 1000);
-        const centiseconds = Math.floor((millisecondsOrSeconds % 1000) / 10);
+function formatTime(milliseconds) {
+  const hours = Math.floor(milliseconds / 3_600_000)
+  const minutes = Math.floor((milliseconds % 3_600_000) / 60_000)
+  const seconds = Math.floor((milliseconds % 60_000) / 1_000)
 
-        return `${pad(minutes)}:${pad(seconds)}.${pad(centiseconds)}`;
-    }
-
-    const minutes = Math.floor(millisecondsOrSeconds / 60);
-    const seconds = millisecondsOrSeconds % 60;
-
-    return `${pad(minutes)}:${pad(seconds)}`;
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
 }
 
 function pad(value) {
-    return String(value).padStart(2, '0');
-}
-
-function applyTimerInput() {
-    if (timerRunning.value) {
-        return;
-    }
-
-    const minutes = Math.max(0, Number(timerMinutes.value) || 0);
-    const seconds = Math.min(59, Math.max(0, Number(timerSeconds.value) || 0));
-
-    timerMinutes.value = minutes;
-    timerSeconds.value = seconds;
-    timerRemaining.value = minutes * 60 + seconds;
-}
-
-function startTimer() {
-    if (timerRunning.value) {
-        return;
-    }
-
-    if (timerRemaining.value <= 0) {
-        applyTimerInput();
-    }
-
-    if (timerRemaining.value <= 0) {
-        return;
-    }
-
-    timerRunning.value = true;
-    timerInterval = window.setInterval(() => {
-        timerRemaining.value -= 1;
-
-        if (timerRemaining.value <= 0) {
-            pauseTimer();
-            timerRemaining.value = 0;
-        }
-    }, 1000);
-}
-
-function pauseTimer() {
-    timerRunning.value = false;
-    window.clearInterval(timerInterval);
-    timerInterval = null;
-}
-
-function resetTimer() {
-    pauseTimer();
-    applyTimerInput();
+  return String(value).padStart(2, '0')
 }
 
 function startStopwatch() {
-    if (stopwatchRunning.value) {
-        return;
-    }
+  if (stopwatchRunning.value) {
+    return
+  }
 
-    stopwatchRunning.value = true;
-    stopwatchStartedAt = performance.now() - stopwatchElapsed.value;
-    stopwatchInterval = window.setInterval(() => {
-        stopwatchElapsed.value = performance.now() - stopwatchStartedAt;
-    }, 10);
+  stopwatchStarted.value = true
+  stopwatchRunning.value = true
+  stopwatchStartedAt = performance.now() - stopwatchElapsed.value
+  updateElapsedTime()
+  stopwatchInterval = window.setInterval(updateElapsedTime, 200)
+}
+
+function updateElapsedTime() {
+  stopwatchElapsed.value = performance.now() - stopwatchStartedAt
 }
 
 function pauseStopwatch() {
-    stopwatchRunning.value = false;
-    window.clearInterval(stopwatchInterval);
-    stopwatchInterval = null;
+  if (!stopwatchRunning.value) {
+    return
+  }
+
+  updateElapsedTime()
+  stopwatchRunning.value = false
+  window.clearInterval(stopwatchInterval)
+  stopwatchInterval = null
 }
 
 function resetStopwatch() {
-    pauseStopwatch();
-    stopwatchElapsed.value = 0;
-    laps.value = [];
+  window.clearInterval(stopwatchInterval)
+  stopwatchInterval = null
+  stopwatchElapsed.value = 0
+  stopwatchRunning.value = false
+  stopwatchStarted.value = false
+  laps.value = []
 }
 
 function recordLap() {
-    if (!stopwatchRunning.value) {
-        return;
-    }
+  if (!stopwatchRunning.value) {
+    return
+  }
 
-    laps.value.unshift(stopwatchElapsed.value);
+  updateElapsedTime()
+  laps.value.unshift(stopwatchElapsed.value)
 }
 
 onBeforeUnmount(() => {
-    window.clearInterval(timerInterval);
-    window.clearInterval(stopwatchInterval);
-});
+  window.clearInterval(stopwatchInterval)
+})
 </script>
 
 <template>
-    <main class="time-app">
-        <h1>Timer & Stopwatch</h1>
+  <main class="stopwatch-page">
+    <section class="stopwatch-shell" aria-labelledby="stopwatch-title">
+      <h1 id="stopwatch-title">스톱워치</h1>
 
-        <div class="panels">
-            <section class="panel">
-                <h2>타이머</h2>
-                <p class="display" aria-live="polite">{{ timerDisplay }}</p>
+      <div class="time" role="timer" aria-live="polite" aria-atomic="true">
+        {{ stopwatchDisplay }}
+      </div>
 
-                <div class="timer-inputs">
-                    <label>
-                        분
-                        <input
-                            v-model.number="timerMinutes"
-                            type="number"
-                            min="0"
-                            :disabled="timerRunning"
-                            @change="applyTimerInput"
-                        >
-                    </label>
-                    <label>
-                        초
-                        <input
-                            v-model.number="timerSeconds"
-                            type="number"
-                            min="0"
-                            max="59"
-                            :disabled="timerRunning"
-                            @change="applyTimerInput"
-                        >
-                    </label>
-                </div>
+      <div class="actions" aria-label="스톱워치 조작">
+        <button
+          type="button"
+          class="control-button"
+          :class="stopwatchStarted ? 'btnStop' : 'btnStart'"
+          @click="stopwatchStarted ? resetStopwatch() : startStopwatch()"
+        >
+          {{ stopwatchStarted ? '중지' : '시작' }}
+        </button>
+        <button
+          type="button"
+          class="control-button lap-button"
+          :disabled="!stopwatchRunning"
+          @click="recordLap"
+        >
+          랩
+        </button>
+        <button
+          type="button"
+          class="control-button"
+          :class="stopwatchStarted && !stopwatchRunning ? 'resume-button' : 'pause-button'"
+          :disabled="!stopwatchStarted"
+          @click="stopwatchRunning ? pauseStopwatch() : startStopwatch()"
+        >
+          {{ stopwatchStarted && !stopwatchRunning ? '재개' : '일시정지' }}
+        </button>
+      </div>
 
-                <div class="actions">
-                    <button v-if="!timerRunning" class="primary" @click="startTimer">시작</button>
-                    <button v-else class="primary" @click="pauseTimer">일시정지</button>
-                    <button @click="resetTimer">초기화</button>
-                </div>
-            </section>
-
-            <section class="panel">
-                <h2>스톱워치</h2>
-                <p class="display" aria-live="polite">{{ stopwatchDisplay }}</p>
-
-                <div class="actions">
-                    <button v-if="!stopwatchRunning" class="primary" @click="startStopwatch">시작</button>
-                    <button v-else class="primary" @click="pauseStopwatch">일시정지</button>
-                    <button :disabled="!stopwatchRunning" @click="recordLap">랩</button>
-                    <button @click="resetStopwatch">초기화</button>
-                </div>
-
-                <ol v-if="laps.length" class="laps">
-                    <li v-for="(lap, index) in laps" :key="`${lap}-${index}`">
-                        <span>Lap {{ laps.length - index }}</span>
-                        <strong>{{ formatTime(lap, true) }}</strong>
-                    </li>
-                </ol>
-            </section>
-        </div>
-    </main>
+      <div v-if="laps.length" class="lap-panel">
+        <h2>랩 기록</h2>
+        <ol class="lap-list">
+          <li v-for="(lap, index) in laps" :key="`${lap}-${index}`">
+            <span>랩 {{ laps.length - index }}</span>
+            <strong>{{ formatTime(lap) }}</strong>
+          </li>
+        </ol>
+      </div>
+    </section>
+  </main>
 </template>
 
 <style scoped>
-/* 전체 페이지 배경 및 중앙 정렬 */
-.time-app {
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    padding: 32px 24px 40px;
-    background-color: #f6f7f9;
-    color: #2b2f36;
-    font-family: 'Arial', sans-serif;
+.stopwatch-page {
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  padding: clamp(8px, 1.5vw, 20px);
+  color: #f8fafc;
 }
 
-/* 페이지 제목 스타일 */
-
-.time-app h1 {
-    margin: 0 0 20px;
-    font-size: clamp(2rem, 4vw, 2.8rem);
-    font-weight: 800;
-    color: #1f2430;
-    text-align: center;
+.stopwatch-shell {
+  width: 100%;
+  min-height: calc(100vh - 140px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(28px, 5vw, 64px);
+  border: 1px solid #475569;
+  border-radius: clamp(24px, 3vw, 40px);
+  background: linear-gradient(145deg, #303743, #1e242d);
+  box-shadow:
+    0 24px 55px rgba(15, 23, 42, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-.panels {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(280px, 1fr));
-    gap: 24px;
-    width: 100%;
-    max-width: 920px;
+h1 {
+  margin: 0 0 clamp(26px, 5vh, 52px);
+  font-size: clamp(24px, 3vw, 38px);
+  letter-spacing: 0.08em;
 }
 
-/* 타이머/스톱워치 카드 공통 스타일 */
-.panel {
-    background-color: #ffffff;
-    border: 1px solid #e7e9ee;
-    border-radius: 18px;
-    box-shadow: 0 8px 24px rgba(20, 24, 40, 0.06);
-    padding: 24px 24px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
+.time {
+  width: min(100%, 920px);
+  box-sizing: border-box;
+  padding: clamp(32px, 8vh, 76px) clamp(18px, 5vw, 56px);
+  border: 2px solid #667085;
+  border-radius: clamp(20px, 2.5vw, 32px);
+  background: #0c1119;
+  box-shadow:
+    inset 0 8px 24px rgba(0, 0, 0, 0.55),
+    0 10px 24px rgba(0, 0, 0, 0.2);
+  color: #d9ffe5;
+  font-family: 'Courier New', monospace;
+  font-size: clamp(52px, 10vw, 142px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 20px rgba(74, 222, 128, 0.28);
 }
 
-.panel h2 {
-    margin: 0;
-    font-size: 1.6rem;
-    font-weight: 800;
-    color: #1f2430;
-}
-
-/* 시간 표시 영역: 강조된 숫자 스타일 */
-.display {
-    margin: 0;
-    padding: 18px 16px;
-    border-radius: 12px;
-    background: linear-gradient(180deg, #fff5ef, #fffaf7);
-    border: 1px solid #ffe5d5;
-    text-align: center;
-    font-size: clamp(2rem, 5vw, 3rem);
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: #ff6b35;
-}
-
-/* 분/초 입력 필드 정렬 */
-.timer-inputs {
-    display: flex;
-    gap: 16px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.timer-inputs label {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #4b5563;
-}
-
-.timer-inputs input {
-    width: 110px;
-    padding: 10px 12px;
-    border: 1px solid #e2e5ec;
-    border-radius: 10px;
-    background-color: #fff;
-    color: #1f2430;
-    font-size: 1rem;
-    font-weight: 700;
-    text-align: center;
-}
-
-.timer-inputs input:focus {
-    outline: 2px solid rgba(255, 107, 53, 0.25);
-    border-color: #ff8e5e;
-}
-
-/* 버튼 묶음 배치 */
 .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
+  width: min(100%, 720px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(10px, 2vw, 22px);
+  margin-top: clamp(28px, 5vh, 52px);
 }
 
-/* 기본 버튼 스타일 */
-button {
-    min-width: 92px;
-    padding: 10px 16px;
-    border: 1px solid #e2e5ec;
-    border-radius: 10px;
-    background-color: #ffffff;
-    color: #3d4553;
-    font-size: 0.96rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s ease;
+.control-button {
+  min-height: 58px;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: 18px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: clamp(16px, 2vw, 21px);
+  font-weight: 700;
+  transition:
+    transform 160ms ease,
+    filter 160ms ease,
+    opacity 160ms ease;
 }
 
-button:hover:not(:disabled) {
-    background-color: #ff6b35;
-    border-color: #ff6b35;
-    color: #ffffff;
+.control-button:not(:disabled):hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
 }
 
-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+.control-button:not(:disabled):active {
+  transform: translateY(0);
 }
 
-button.primary {
-    background: linear-gradient(180deg, #ff7a45, #ff5722);
-    border-color: #ff6b35;
-    color: #ffffff;
-    box-shadow: 0 4px 10px rgba(255, 107, 53, 0.2);
+.control-button:focus-visible {
+  outline: 3px solid #f8fafc;
+  outline-offset: 3px;
 }
 
-button.primary:hover:not(:disabled) {
-    background: linear-gradient(180deg, #ff6931, #ef4b1b);
+.control-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
 }
 
-/* 랩 기록 리스트 */
-.laps {
-    margin: 0;
-    padding: 0 0 0 18px;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
+.btnStart {
+  background: #15803d;
+}
+
+.btnStop {
+  background: #b91c1c;
+}
+
+.lap-button {
+  background: #475569;
+}
+
+.pause-button {
+  background: #b45309;
+}
+
+.resume-button {
+  background: #2563eb;
+}
+
+.lap-panel {
+  width: min(100%, 720px);
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.lap-panel h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}
+
+.lap-list {
+  max-height: 190px;
+  margin: 0;
+  padding: 0 8px 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.lap-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .stopwatch-page {
+    padding: 4px;
+  }
+
+  .stopwatch-shell {
+    min-height: calc(100vh - 112px);
+    padding: 24px 16px;
+    border-radius: 24px;
+  }
+
+  h1 {
+    margin-bottom: 24px;
+  }
+
+  .time {
+    padding: 38px 10px;
+    border-radius: 18px;
+    font-size: clamp(42px, 14vw, 68px);
+    letter-spacing: 0;
+  }
+
+  .actions {
     gap: 8px;
-}
+    margin-top: 28px;
+  }
 
-.laps li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 12px;
-    border-radius: 8px;
-    background-color: #f7f8fa;
-    border: 1px solid #edf0f4;
-    font-size: 0.92rem;
-    color: #495365;
-}
-
-.laps strong {
-    color: #ff6b35;
-    font-weight: 800;
-}
-
-/* 모바일 대응 */
-@media (max-width: 760px) {
-    .panels {
-        grid-template-columns: 1fr;
-    }
-
-    .panel {
-        padding: 20px 18px 18px;
-    }
+  .control-button {
+    min-height: 52px;
+    padding: 10px 6px;
+    border-radius: 14px;
+    font-size: 15px;
+  }
 }
 </style>
