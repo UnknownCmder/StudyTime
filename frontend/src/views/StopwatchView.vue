@@ -308,170 +308,151 @@ h1 {
   letter-spacing: 0.08em;
 }
 
-/* 페이지 제목 스타일 */
-
-.time-app h1 {
-    margin: 0 0 20px;
-    font-size: clamp(2rem, 4vw, 2.8rem);
-    font-weight: 800;
-    color: #1f2430;
-    text-align: center;
+.time {
+  width: min(100%, 920px);
+  box-sizing: border-box;
+  padding: clamp(32px, 8vh, 76px) clamp(18px, 5vw, 56px);
+  border: 2px solid #667085;
+  border-radius: clamp(20px, 2.5vw, 32px);
+  background: #0c1119;
+  box-shadow:
+    inset 0 8px 24px rgba(0, 0, 0, 0.55),
+    0 10px 24px rgba(0, 0, 0, 0.2);
+  color: #d9ffe5;
+  font-family: 'Courier New', monospace;
+  font-size: clamp(52px, 10vw, 142px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 20px rgba(74, 222, 128, 0.28);
 }
 
-.panels {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(280px, 1fr));
-    gap: 24px;
-    width: 100%;
-    max-width: 920px;
-}
-
-/* 타이머/스톱워치 카드 공통 스타일 */
-.panel {
-    background-color: #ffffff;
-    border: 1px solid #e7e9ee;
-    border-radius: 18px;
-    box-shadow: 0 8px 24px rgba(20, 24, 40, 0.06);
-    padding: 24px 24px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-}
-
-.panel h2 {
-    margin: 0;
-    font-size: 1.6rem;
-    font-weight: 800;
-    color: #1f2430;
-}
-
-/* 시간 표시 영역: 강조된 숫자 스타일 */
-.display {
-    margin: 0;
-    padding: 18px 16px;
-    border-radius: 12px;
-    background: linear-gradient(180deg, #fff5ef, #fffaf7);
-    border: 1px solid #ffe5d5;
-    text-align: center;
-    font-size: clamp(2rem, 5vw, 3rem);
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: #ff6b35;
-}
-
-/* 분/초 입력 필드 정렬 */
-.timer-inputs {
-    display: flex;
-    gap: 16px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.timer-inputs label {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #4b5563;
-}
-
-.timer-inputs input {
-    width: 110px;
-    padding: 10px 12px;
-    border: 1px solid #e2e5ec;
-    border-radius: 10px;
-    background-color: #fff;
-    color: #1f2430;
-    font-size: 1rem;
-    font-weight: 700;
-    text-align: center;
-}
-
-.timer-inputs input:focus {
-    outline: 2px solid rgba(255, 107, 53, 0.25);
-    border-color: #ff8e5e;
-}
-
-/* 버튼 묶음 배치 */
 .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
+  width: min(100%, 720px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(10px, 2vw, 22px);
+  margin-top: clamp(28px, 5vh, 52px);
 }
 
-/* 기본 버튼 스타일 */
-button {
-    min-width: 92px;
-    padding: 10px 16px;
-    border: 1px solid #e2e5ec;
-    border-radius: 10px;
-    background-color: #ffffff;
-    color: #3d4553;
-    font-size: 0.96rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s ease;
+.control-button {
+  min-height: 58px;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: 18px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: clamp(16px, 2vw, 21px);
+  font-weight: 700;
+  transition:
+    transform 160ms ease,
+    filter 160ms ease,
+    opacity 160ms ease;
 }
 
-button:hover:not(:disabled) {
-    background-color: #ff6b35;
-    border-color: #ff6b35;
-    color: #ffffff;
+.control-button:not(:disabled):hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
 }
 
-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+.control-button:not(:disabled):active {
+  transform: translateY(0);
 }
 
-button.primary {
-    background: linear-gradient(180deg, #ff7a45, #ff5722);
-    border-color: #ff6b35;
-    color: #ffffff;
-    box-shadow: 0 4px 10px rgba(255, 107, 53, 0.2);
+.control-button:focus-visible {
+  outline: 3px solid #f8fafc;
+  outline-offset: 3px;
 }
 
-button.primary:hover:not(:disabled) {
-    background: linear-gradient(180deg, #ff6931, #ef4b1b);
+.control-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
 }
 
-/* 랩 기록 리스트 */
-.laps {
-    margin: 0;
-    padding: 0 0 0 18px;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
+.btnStart {
+  background: #15803d;
+}
+
+.btnStop {
+  background: #b91c1c;
+}
+
+.lap-button {
+  background: #475569;
+}
+
+.pause-button {
+  background: #b45309;
+}
+
+.resume-button {
+  background: #2563eb;
+}
+
+.lap-panel {
+  width: min(100%, 720px);
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.lap-panel h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}
+
+.lap-list {
+  max-height: 190px;
+  margin: 0;
+  padding: 0 8px 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.lap-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .stopwatch-page {
+    padding: 4px;
+  }
+
+  .stopwatch-shell {
+    min-height: calc(100vh - 112px);
+    padding: 24px 16px;
+    border-radius: 24px;
+  }
+
+  h1 {
+    margin-bottom: 24px;
+  }
+
+  .time {
+    padding: 38px 10px;
+    border-radius: 18px;
+    font-size: clamp(42px, 14vw, 68px);
+    letter-spacing: 0;
+  }
+
+  .actions {
     gap: 8px;
-}
+    margin-top: 28px;
+  }
 
-.laps li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 12px;
-    border-radius: 8px;
-    background-color: #f7f8fa;
-    border: 1px solid #edf0f4;
-    font-size: 0.92rem;
-    color: #495365;
-}
-
-.laps strong {
-    color: #ff6b35;
-    font-weight: 800;
-}
-
-/* 모바일 대응 */
-@media (max-width: 760px) {
-    .panels {
-        grid-template-columns: 1fr;
-    }
-
-    .panel {
-        padding: 20px 18px 18px;
-    }
+  .control-button {
+    min-height: 52px;
+    padding: 10px 6px;
+    border-radius: 14px;
+    font-size: 15px;
+  }
 }
 </style>
