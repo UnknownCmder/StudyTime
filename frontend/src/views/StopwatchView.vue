@@ -19,6 +19,7 @@ function formatTime(milliseconds) {
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
 }
 
+// 시간이 1시간일때 01로 표기하는 함수
 function pad(value) {
   return String(value).padStart(2, '0')
 }
@@ -50,6 +51,12 @@ function pauseStopwatch() {
   stopwatchInterval = null
 }
 
+// 팝업을 닫습니다. 스톱워치는 이미 초기화된 상태를 유지합니다.
+function cancelStopwatch() {
+    stopDialog.value.close()
+}
+
+// 스톱워치 초기화
 function resetStopwatch() {
   window.clearInterval(stopwatchInterval)
   stopwatchInterval = null
@@ -59,6 +66,7 @@ function resetStopwatch() {
   laps.value = []
 }
 
+// 랩 기록
 function recordLap() {
   if (!stopwatchRunning.value) {
     return
@@ -76,13 +84,13 @@ onBeforeUnmount(() => {
 <template>
   <main class="stopwatch-page">
     <section class="stopwatch-shell" aria-labelledby="stopwatch-title">
-      <h1 id="stopwatch-title">스톱워치</h1>
+      <h1 id="stopwatch-title">스탑워치</h1>
 
       <div class="time" role="timer" aria-live="polite" aria-atomic="true">
         {{ stopwatchDisplay }}
       </div>
 
-      <div class="actions" aria-label="스톱워치 조작">
+      <div class="actions" aria-label="스탑워치 조작">
         <button
           type="button"
           class="control-button"
