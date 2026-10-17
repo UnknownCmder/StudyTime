@@ -30,6 +30,7 @@ build/
 coverage/
 .cache/
 .npm/
+public/
 
 # OS / editor files
 .DS_Store
