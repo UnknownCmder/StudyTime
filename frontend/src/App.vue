@@ -160,8 +160,8 @@ onMounted(fetchLoginStatus)
 
 /* --- 왼쪽 사이드바 스타일 --- */
 .sidebar {
-  grid-column: 1 / 2;
-  grid-row: 2 / 3;
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
     height: 100%;
     background-color: #555;
     border-right: 1px solid #ddd;

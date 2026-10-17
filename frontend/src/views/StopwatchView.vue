@@ -1,20 +1,16 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue'
 
 const stopwatchElapsed = ref(0)
 const stopwatchRunning = ref(false)
 const stopwatchStarted = ref(false)
 const laps = ref([])
-const stopDialog = ref(null)
-const stoppedElapsed = ref(0)
 
 let stopwatchInterval = null
 let stopwatchStartedAt = 0
 
-const timerDisplay = computed(() => formatTime(timerRemaining.value));
-const stopwatchDisplay = computed(() => formatTime(stopwatchElapsed.value, true));
+const stopwatchDisplay = computed(() => formatTime(stopwatchElapsed.value))
 
-// 시간을 밀리초 단위로 받아서 시분초로 계산하고 문자열로 반환
 function formatTime(milliseconds) {
   const hours = Math.floor(milliseconds / 3_600_000)
   const minutes = Math.floor((milliseconds % 3_600_000) / 60_000)
@@ -28,11 +24,10 @@ function pad(value) {
   return String(value).padStart(2, '0')
 }
 
-// 스톱워치 시작 함수
 function startStopwatch() {
-    if (stopwatchRunning.value) {
-        return;
-    }
+  if (stopwatchRunning.value) {
+    return
+  }
 
   stopwatchStarted.value = true
   stopwatchRunning.value = true
@@ -41,12 +36,10 @@ function startStopwatch() {
   stopwatchInterval = window.setInterval(updateElapsedTime, 200)
 }
 
-// 스톱워치 시간 업데이트
 function updateElapsedTime() {
   stopwatchElapsed.value = performance.now() - stopwatchStartedAt
 }
 
-//스톱워치 일시정지
 function pauseStopwatch() {
   if (!stopwatchRunning.value) {
     return
@@ -58,23 +51,6 @@ function pauseStopwatch() {
   stopwatchInterval = null
 }
 
-// 중지 직전 시간을 팝업용으로 보관하고 스톱워치 상태를 즉시 초기화합니다.
-function stopStopwatch() {
-    if (!stopwatchStarted.value) {
-        return
-    }
-
-    pauseStopwatch()
-    stoppedElapsed.value = stopwatchElapsed.value
-    resetStopwatch()
-    stopDialog.value.showModal()
-}
-
-// 저장 버튼은 팝업을 닫습니다. 실제 기록 저장은 추후 연결합니다.
-function saveStopwatch() {
-    stopDialog.value.close()
-}
-
 // 팝업을 닫습니다. 스톱워치는 이미 초기화된 상태를 유지합니다.
 function cancelStopwatch() {
     stopDialog.value.close()
@@ -84,7 +60,6 @@ function cancelStopwatch() {
 function resetStopwatch() {
   window.clearInterval(stopwatchInterval)
   stopwatchInterval = null
-  stopwatchStartedAt = 0
   stopwatchElapsed.value = 0
   stopwatchRunning.value = false
   stopwatchStarted.value = false
@@ -93,17 +68,17 @@ function resetStopwatch() {
 
 // 랩 기록
 function recordLap() {
-    if (!stopwatchRunning.value) {
-        return;
-    }
+  if (!stopwatchRunning.value) {
+    return
+  }
 
-    laps.value.unshift(stopwatchElapsed.value);
+  updateElapsedTime()
+  laps.value.unshift(stopwatchElapsed.value)
 }
 
 onBeforeUnmount(() => {
-    window.clearInterval(timerInterval);
-    window.clearInterval(stopwatchInterval);
-});
+  window.clearInterval(stopwatchInterval)
+})
 </script>
 
 <template>
@@ -120,7 +95,7 @@ onBeforeUnmount(() => {
           type="button"
           class="control-button"
           :class="stopwatchStarted ? 'btnStop' : 'btnStart'"
-          @click="stopwatchStarted ? stopStopwatch() : startStopwatch()"
+          @click="stopwatchStarted ? resetStopwatch() : startStopwatch()"
         >
           {{ stopwatchStarted ? '중지' : '시작' }}
         </button>
@@ -153,130 +128,10 @@ onBeforeUnmount(() => {
         </ol>
       </div>
     </section>
-    <dialog ref="stopDialog" class="stop-dialog" aria-label="기록 시간 저장"
-        @cancel.prevent="cancelStopwatch">
-        <form class="stop-dialog-content" @submit.prevent="saveStopwatch">
-            <output class="stop-dialog-time" aria-label="기록 시간">
-                {{ formatTime(stoppedElapsed) }}
-            </output>
-            <!-- 과목 추가 및 선택 기능은 추후 연결합니다. -->
-            <div class="subject-controls">
-                <button type="button" class="subject-add" disabled
-                    aria-label="과목 추가" title="과목 추가 (준비 중)">+</button>
-                <select class="subject-select" aria-label="과목 선택" disabled>
-                    <option value="">과목선택</option>
-                </select>
-            </div>
-            <div class="stop-dialog-actions">
-                <button type="submit" class="save-stop" autofocus>저장</button>
-                <button type="button" @click="cancelStopwatch">취소</button>
-            </div>
-        </form>
-    </dialog>
   </main>
 </template>
 
 <style scoped>
-.stop-dialog {
-    width: min(600px, calc(100vw - 32px));
-    max-height: calc(100dvh - 32px);
-    box-sizing: border-box;
-    margin: auto;
-    padding: 40px 32px;
-    overflow-y: auto;
-    border: 2px solid #35393d;
-    border-radius: 48px;
-    background: #ffffff;
-    color: #202428;
-    box-shadow: 0 24px 64px rgb(0 0 0 / 25%);
-}
-
-.stop-dialog::backdrop {
-    background: rgb(0 0 0 / 55%);
-}
-
-.stop-dialog-content {
-    display: grid;
-    gap: 40px;
-}
-
-.stop-dialog-time {
-    display: block;
-    box-sizing: border-box;
-    padding: 24px 8px;
-    border: 2px solid #555b61;
-    border-radius: 24px;
-    text-align: center;
-    font-size: 32px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    overflow-wrap: anywhere;
-}
-
-.subject-controls {
-    display: grid;
-    grid-template-columns: 36px minmax(0, 1fr);
-    width: 84%;
-    justify-self: center;
-}
-
-.subject-add,
-.subject-select {
-    height: 36px;
-    box-sizing: border-box;
-    border: 1px solid #73797f;
-    border-radius: 0;
-    background: #ffffff;
-    font: inherit;
-    opacity: 1;
-    cursor: not-allowed;
-}
-
-.subject-add {
-    width: 36px;
-    padding: 0;
-    color: #555b61;
-    font-size: 24px;
-    line-height: 1;
-}
-
-.subject-select {
-    width: 100%;
-    min-width: 0;
-    padding: 0 12px;
-    border-left: 0;
-    color: #a1a1aa;
-    -webkit-text-fill-color: #a1a1aa;
-}
-
-.stop-dialog-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 24px;
-}
-
-.stop-dialog-actions button {
-    min-height: 56px;
-    padding: 12px;
-    border: 1px solid #73797f;
-    border-radius: 16px;
-    background: #f5f6f7;
-    color: #202428;
-    font: inherit;
-    cursor: pointer;
-}
-
-.stop-dialog-actions .save-stop {
-    background: #15803d;
-    border-color: #15803d;
-    color: #ffffff;
-}
-
-.stop-dialog-actions button:focus-visible {
-    outline: 3px solid #2563eb;
-    outline-offset: 3px;
-}
-
 .stopwatch-page {
   width: 100%;
   min-height: 100%;

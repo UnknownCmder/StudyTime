@@ -5,6 +5,7 @@ node_modules/
 .env
 .env.*
 !.env.example
+createKey.js
 
 # SQLite database files
 database/*.db
