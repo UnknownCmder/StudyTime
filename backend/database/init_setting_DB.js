@@ -19,3 +19,18 @@ db.run(`CREATE TABLE IF NOT EXISTS users (
         console.log('Users table created or already exists.');
     }
 });
+
+db.run(`CREATE TABLE IF NOT EXISTS study_time (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    start_time INTEGER NOT NULL,
+    end_time INTEGER default 0,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id)
+)`, (err) => {
+    if (err) {
+        console.error('Error creating study_time table:', err.message);
+    } else {
+        console.log('Study_time table created or already exists.');
+    }
+});
