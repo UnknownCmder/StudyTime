@@ -1,3 +1,38 @@
+<template>
+  <div class="page">
+    <!-- 로그인 카드를 감싸는 글래스/화이트 스타일 박스 -->
+    <div class="wrapper">
+      <h1>로그인</h1>
+      <!-- 제출 시 새로고침 방지 후 handleLogin 실행 -->
+      <form @submit.prevent="handleLogin">
+        <div class="input-box">
+          <label for="login-email">이메일</label>
+          <input
+            id="login-email"
+            v-model="email"
+            type="email"
+            placeholder="you@example.com"
+            required
+          />
+        </div>
+
+        <div class="input-box">
+          <label for="login-password">비밀번호</label>
+          <input
+            id="login-password"
+            v-model="password"
+            type="password"
+            placeholder="비밀번호 입력"
+            required
+          />
+        </div>
+
+        <button type="submit" class="btn">로그인하기</button>
+      </form>
+    </div>
+  </div>
+</template>
+
 <script setup>
 import { useAuth } from '@/composables/useAuth'
 import { onMounted, ref } from 'vue'
