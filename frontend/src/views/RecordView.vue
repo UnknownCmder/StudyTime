@@ -2,13 +2,26 @@
 // 공부 기록 페이지 - "디자인(레이아웃) 우선" 버전
 // 아직 실제 기능(월 이동, 데이터 연동)은 연결하지 않고 정적 화면만 구성합니다.
 import { computed, ref } from 'vue'
+import { useAuth } from '../composables/useAuth'
+
+const { isLoggedIn } = useAuth()
 
 /* =========================================================
  * 1. 기본 설정 (임시 값)
  * ========================================================= */
-const currentYear = 2026
-const currentMonth = 7
-const TODAY = 9 // 임시 오늘 날짜 (7월 9일)
+const selectedMonth = ref(new Date(2026, 6, 1))
+const currentYear = computed(() => selectedMonth.value.getFullYear())
+const currentMonth = computed(() => selectedMonth.value.getMonth() + 1)
+const today = new Date()
+
+function changeMonth(offset) {
+  selectedMonth.value = new Date(
+    selectedMonth.value.getFullYear(),
+    selectedMonth.value.getMonth() + offset,
+    1,
+  )
+  openWeek.value = null
+}
 
 /* =========================================================
  * 2. 입력 데이터 (다른 코드에서 props로 넘겨받음)
@@ -105,7 +118,7 @@ function dateKey(d) {
  *    해당 월을 포함하는 주(일~토) 단위 배열. 앞뒤 달 날짜는 inMonth: false
  * ========================================================= */
 const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토']
-const weeks = computed(() => buildWeeks(currentYear, currentMonth))
+const weeks = computed(() => buildWeeks(currentYear.value, currentMonth.value))
 
 function buildWeeks(year, month) {
   const first = new Date(year, month - 1, 1)
@@ -124,7 +137,10 @@ function buildWeeks(year, month) {
         date,
         inMonth,
         kind: i === 0 ? 'sun' : i === 6 ? 'sat' : '',
-        isToday: inMonth && date === TODAY,
+        isToday: inMonth &&
+          cursor.getFullYear() === today.getFullYear() &&
+          cursor.getMonth() === today.getMonth() &&
+          date === today.getDate(),
         sessions: sessionsByDate.value[key] ?? [],
       })
       cursor.setDate(date + 1)
@@ -176,29 +192,33 @@ let animationFrame = 0
 
 function toggleWeek(index) {
   const next = openWeek.value === index ? null : index
+  const panels = panelEls.filter(Boolean)
+  const rows = rowEls.filter(Boolean)
+
+  if (!panels.length || !rows[index]) return
 
   // 지금 높이를 인라인으로 고정해 두고 (클래스가 바뀌어도 튀지 않게) 목표 높이를 계산
-  const from = panelEls.map(el => el.getBoundingClientRect().height)
-  panelEls.forEach((el, i) => (el.style.height = from[i] + 'px'))
-  const to = panelEls.map((el, i) => (i === next ? el.scrollHeight : 0))
+  const from = panels.map(el => el.getBoundingClientRect().height)
+  panels.forEach((el, i) => (el.style.height = from[i] + 'px'))
+  const to = panels.map((el, i) => (i === next ? el.scrollHeight : 0))
 
   openWeek.value = next
-  animateFold(from, to, next)
+  animateFold(panels, rows, from, to, next)
 }
 
-function animateFold(from, to, openIndex) {
+function animateFold(panels, rows, from, to, openIndex) {
   cancelAnimationFrame(animationFrame)
 
-  const scroller = findScrollParent(panelEls[0])
+  const scroller = findScrollParent(panels[0])
   const startScroll = scroller.scrollTop
-  const endScroll = openIndex === null ? null : scrollTargetFor(openIndex, from, to, scroller)
+  const endScroll = openIndex === null ? null : scrollTargetFor(openIndex, rows, from, to, scroller)
   const startTime = performance.now()
 
   function frame(now) {
     const progress = Math.min(1, (now - startTime) / FOLD_DURATION)
     const eased = easeInOutCubic(progress)
 
-    panelEls.forEach((el, i) => {
+    panels.forEach((el, i) => {
       if (from[i] !== to[i]) el.style.height = from[i] + (to[i] - from[i]) * eased + 'px'
     })
     if (endScroll !== null) {
@@ -209,7 +229,7 @@ function animateFold(from, to, openIndex) {
       animationFrame = requestAnimationFrame(frame)
     } else {
       // 끝나면 인라인 높이를 지우고 CSS(.open → auto, 나머지 → 0)에 맡김
-      panelEls.forEach(el => (el.style.height = ''))
+      panels.forEach(el => (el.style.height = ''))
     }
   }
   animationFrame = requestAnimationFrame(frame)
@@ -217,7 +237,7 @@ function animateFold(from, to, openIndex) {
 
 // 애니메이션이 끝났을 때의 스크롤 위치:
 // 열린 타임라인 아래쪽까지 화면에 들어오되, 그 주의 날짜 행은 위로 밀려나지 않게
-function scrollTargetFor(openIndex, from, to, scroller) {
+function scrollTargetFor(openIndex, rows, from, to, scroller) {
   const isPage = scroller === document.scrollingElement
   const viewTop = isPage ? 0 : scroller.getBoundingClientRect().top + scroller.clientTop
   const viewHeight = isPage ? window.innerHeight : scroller.clientHeight
@@ -228,7 +248,7 @@ function scrollTargetFor(openIndex, from, to, scroller) {
   for (let i = 0; i < openIndex; i++) shrinkAbove += from[i] - to[i]
   const totalChange = to.reduce((sum, h, i) => sum + h - from[i], 0)
 
-  const row = rowEls[openIndex]
+  const row = rows[openIndex]
   const rowTop = row.getBoundingClientRect().top - viewTop + current - shrinkAbove
   const panelBottom = rowTop + row.offsetHeight + to[openIndex]
 
@@ -276,34 +296,27 @@ function dayTotal(sessions) {
 </script>
 
 <template>
-  <div class="record" :style="{ '--fold-duration': FOLD_DURATION + 'ms' }">
+  <p v-if="!isLoggedIn" class="login-required-message">로그인을 해야 이용할 수 있습니다</p>
+  <div v-else class="record" :style="{ '--fold-duration': FOLD_DURATION + 'ms' }">
     <div class="record-card">
       <!-- ===== 상단: 월 이동 네비게이션 (◀ 7월 ▶) ===== -->
       <div class="month-nav">
-        <button class="nav-btn" type="button" aria-label="이전 달">
+        <button class="nav-btn" type="button" aria-label="이전 달" @click="changeMonth(-1)">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
 
-        <h2 class="month-label">{{ currentMonth }}월</h2>
+          <h2 class="month-label">{{ currentYear }}년 {{ currentMonth }}월</h2>
 
-        <button class="nav-btn" type="button" aria-label="다음 달">
+        <button class="nav-btn" type="button" aria-label="다음 달" @click="changeMonth(1)">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </button>
       </div>
-
-      <!-- ===== 과목 색상 범례 ===== -->
-      <ul v-if="subjects.length" class="subject-legend">
-        <li v-for="s in subjects" :key="s.name" class="subject-chip">
-          <span class="subject-dot" :style="{ backgroundColor: s.color }"></span>
-          {{ s.name }}
-        </li>
-      </ul>
 
       <!-- ===== 월간 캘린더 ===== -->
       <div class="calendar">

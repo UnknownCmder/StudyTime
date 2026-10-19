@@ -1,6 +1,6 @@
 <script setup>
-import { onMounted, ref } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuth } from './composables/useAuth'
 
 const sidebarList = [
@@ -14,7 +14,9 @@ const sidebarList = [
 const isSidebarOpen = ref(true)
 const sidebarRef = ref(null)
 const router = useRouter()
+const route = useRoute()
 const { isLoggedIn, isLoginLoading, fetchLoginStatus, logout } = useAuth()
+const requiresLogin = computed(() => ['home', 'about', 'record'].includes(route.name))
 
 function toggleSidebar() {
   // 현재 화면 너비 확인
@@ -199,6 +201,18 @@ onMounted(fetchLoginStatus)
     padding: 20px;
     overflow-y: auto; /* 내용이 많으면 스크롤 */
     background-color: #fff;
+}
+
+.login-required-message {
+    min-height: 100%;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #333;
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 600;
 }
 
 /* --- [핵심 기능] 사이드바 토글 상태 --- */
