@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const db = require('../database/connectDB');
 const { verifyPassword } = require('../utils/password');
+const session = require('express-session');
 
 const SESSION_COOKIE = 'studytime_sid';
 // 세션 유효 기간은 요구사항대로 1일로 설정합니다.
@@ -154,3 +155,4 @@ router.delete('/', function (req, res, next) {
 });
 
 module.exports = router;
+module.exports.getSession = getSession;

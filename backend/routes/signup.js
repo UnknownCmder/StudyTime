@@ -12,6 +12,16 @@ router.post('/', async function (req, res, next) {
         return;
     }
 
+    if (typeof password !== 'string' || password.length < 6 || password.length > 20) {
+        res.status(400).send({ message: '비밀번호는 문자가 포함된 6자 이상 20자 이하로 입력해주세요.' });
+        return;
+    }
+
+    if (!/^[A-Za-z0-9_*!@#$%^&*()]+$/.test(password)) {
+        res.status(400).send({ message: '비밀번호는 영어, 숫자, 밑줄(_)과 숫자 위 특수문자만 사용할 수 있습니다.' });
+        return;
+    }
+
     try {
         // DB에 저장하기 전에 비밀번호를 평문이 아닌 해시 값으로 변환합니다.
         const hashedPassword = await hashPassword(password);

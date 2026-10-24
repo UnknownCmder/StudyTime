@@ -6,7 +6,7 @@ const currentUserId = ref(null)
 
 async function fetchLoginStatus() {
     // 서버 세션 쿠키를 포함해서 현재 로그인 상태를 확인합니다.
-    const response = await fetch('/api/login/status', {
+    const response = await fetch('/api/signin/status', {
         credentials: 'include',
     })
 
@@ -25,7 +25,7 @@ async function login(id, password) {
     isLoginLoading.value = true
 
     try {
-        const response = await fetch('/api/login', {
+        const response = await fetch('/api/signin', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -53,7 +53,7 @@ async function logout() {
     isLoginLoading.value = true
 
     try {
-        const response = await fetch('/api/login', {
+        const response = await fetch('/api/signin', {
             method: 'DELETE',
             credentials: 'include',
         })
