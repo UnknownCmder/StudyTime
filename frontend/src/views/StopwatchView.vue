@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useAuth } from '../composables/useAuth'
 
+<<<<<<< HEAD
 const { isLoggedIn } = useAuth()
 
 const stopwatchElapsed = ref(0) //스탑워치 경과시간 0으로 설정 및 화면 변환
@@ -14,6 +15,18 @@ const stoppedElapsed = ref(0) //중지 시 팝업에 표시할 경과시간의 �
 let stopwatchInterval = null //반복 실행 중인 작업 없음
 let stopwatchStartedAt = 0 //경과시간 계산의 기준 시각 저장. 재개할 때 기존 경과시간을 반영해 조정
 
+=======
+const stopwatchElapsed = ref(0) //스탑워치 경과시간 0으로 설정 및 화면 변환
+const stopwatchRunning = ref(false) //스탑워치 작동 상태 false로 설정
+const stopwatchStarted = ref(false) //스탑워치 시작 여부 false로 설정
+const laps = ref([]) //랩기록 빈 배열 설정
+const stopDialog = ref(null) //팝업 요소를 담을 변수. 화면이 만들어지기 전에는 null
+const stoppedElapsed = ref(0) //중지 시 팝업에 표시할 경과시간의 초깃값을 0으로 설정
+
+let stopwatchInterval = null //반복 실행 중인 작업 없음
+let stopwatchStartedAt = 0 //경과시간 계산의 기준 시각 저장. 재개할 때 기존 경과시간을 반영해 조정
+
+>>>>>>> 6960a0d901f796d3b019de8ab503af8a90965ad7
 //표시 시간 : formatTime함수로 흐른시간을 화면에 표시
 const stopwatchDisplay = computed(() => formatTime(stopwatchElapsed.value))
 
