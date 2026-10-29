@@ -1,7 +1,8 @@
 <script setup>
-// 공부 계획(플래너) 페이지
-// 일요일~토요일 한 주를 슬라이드 한 장으로 보여주고, ◀ ▶ 버튼이나 좌우로 밀어서 주를 넘깁니다.
-// 아직 계획 추가/수정과 서버 연동은 없고, 넘겨받은 계획(없으면 샘플)을 보여주기만 합니다.
+// 공부 계획(플래너) 페이지 - 오른쪽 위 전환 버튼으로 두 화면을 오갑니다.
+// - 월간 달력: 날짜를 누르면 그날의 계획을 고치는 창이 열립니다.
+// - 주간 플래너: 일요일~토요일 한 주를 슬라이드 한 장으로 보여주고, ◀ ▶ 버튼이나 좌우로 밀어서 주를 넘깁니다.
+// 아직 서버 저장은 없고, 넘겨받은 계획(없으면 샘플)을 이 화면 안에서만 고칩니다.
 import { computed, ref, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
 
@@ -24,6 +25,12 @@ function addDays(d, n) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
 }
 
+// 그 날짜의 time(HH:MM) 시각
+function withTime(d, time) {
+  const [h, m] = time.split(':').map(Number)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m)
+}
+
 function dateKey(d) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
@@ -43,6 +50,7 @@ function pad(value) {
  *
  *    사용 예) <Planner :plans="plans" />
  *    plans를 넘기지 않으면 아래 SAMPLE_PLANS(미리보기용)를 보여줍니다.
+ *    달력에서 고친 내용은 이 화면 안의 복사본에만 반영됩니다. (서버 저장은 추후 연결)
  * ========================================================= */
 const props = defineProps({
   plans: { type: Array, default: undefined },
@@ -50,10 +58,7 @@ const props = defineProps({
 
 // 이번 주 일요일 기준 dayOffset일 뒤의 time(HH:MM) 시각 (샘플이 항상 이번 주 근처에 보이도록)
 function at(dayOffset, time) {
-  const [h, m] = time.split(':').map(Number)
-  const d = addDays(thisWeekStart, dayOffset)
-  d.setHours(h, m)
-  return d
+  return withTime(addDays(thisWeekStart, dayOffset), time)
 }
 
 const SAMPLE_PLANS = [
@@ -78,7 +83,12 @@ const SAMPLE_PLANS = [
   { subject: '영어', title: '문법 총정리', start: at(10, '09:00'), end: at(10, '10:30') },
 ]
 
-const plans = computed(() => props.plans ?? SAMPLE_PLANS)
+// 화면에서 고칠 수 있도록 복사본으로 들고 있음 (props가 바뀌면 다시 복사)
+const plans = ref([...(props.plans ?? SAMPLE_PLANS)])
+
+watch(() => props.plans, list => {
+  if (list) plans.value = [...list]
+})
 
 /* =========================================================
  * 3. 과목별 색상 (공부기록 페이지와 같은 팔레트 · 같은 배정 방식)
@@ -88,10 +98,14 @@ const SUBJECT_COLORS = [
   '#d97706', '#0d9488', '#6366f1', '#ef4444', '#65a30d',
 ]
 
-const subjectColor = computed(() => {
-  const names = [...new Set(plans.value.map(p => p.subject))].sort((a, b) => a.localeCompare(b, 'ko'))
-  return new Map(names.map((name, i) => [name, SUBJECT_COLORS[i % SUBJECT_COLORS.length]]))
-})
+// 과목 이름 가나다순 (수정 창의 과목 자동완성에도 사용)
+const subjectNames = computed(() =>
+  [...new Set(plans.value.map(p => p.subject))].sort((a, b) => a.localeCompare(b, 'ko')),
+)
+
+const subjectColor = computed(() =>
+  new Map(subjectNames.value.map((name, i) => [name, SUBJECT_COLORS[i % SUBJECT_COLORS.length]])),
+)
 
 /* =========================================================
  * 4. 계획 → 날짜별 타임라인 조각으로 정리
@@ -359,6 +373,12 @@ function fmtClock(d) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+// "HH:MM" → 분 (예: "09:05" -> 545)
+function toMinutes(time) {
+  const [h, m] = time.split(':').map(Number)
+  return h * 60 + m
+}
+
 // 하루 총 계획 시간 (예: "2시간 30분")
 function dayTotal(dayPlans) {
   const min = dayPlans.reduce((sum, p) => sum + (p.end - p.start), 0)
@@ -367,6 +387,154 @@ function dayTotal(dayPlans) {
   if (h && m) return `${h}시간 ${m}분`
   if (h) return `${h}시간`
   return `${m}분`
+}
+
+/* =========================================================
+ * 9. 월간 달력
+ *    보이는 달을 포함하는 주(일~토) 단위 배열. 앞뒤 달 날짜는 inMonth: false
+ * ========================================================= */
+const calendarMonth = ref(new Date(today.getFullYear(), today.getMonth(), 1))
+
+const calendarLabel = computed(() =>
+  `${calendarMonth.value.getFullYear()}년 ${calendarMonth.value.getMonth() + 1}월`,
+)
+
+const calendarWeeks = computed(() => {
+  const month = calendarMonth.value.getMonth()
+  const weeks = []
+  let cursor = startOfWeek(calendarMonth.value)
+
+  // 다음 주 일요일이 다음 달로 넘어가면 끝
+  do {
+    weeks.push(DOW_LABELS.map((dow, i) => {
+      const d = addDays(cursor, i)
+      const key = dateKey(d)
+      return {
+        key,
+        date: d,
+        dom: d.getDate(),
+        label: `${d.getMonth() + 1}월 ${d.getDate()}일 ${dow}요일`,
+        inMonth: d.getMonth() === month,
+        kind: i === 0 ? 'sun' : i === 6 ? 'sat' : '',
+        isToday: key === todayKey,
+      }
+    }))
+    cursor = addDays(cursor, 7)
+  } while (cursor.getMonth() === month)
+
+  return weeks
+})
+
+function changeMonth(offset) {
+  const d = calendarMonth.value
+  calendarMonth.value = new Date(d.getFullYear(), d.getMonth() + offset, 1)
+}
+
+/* =========================================================
+ * 10. 날짜별 계획 수정 창
+ *     그날 "시작하는" 계획을 고침. 고치는 동안은 draft에만 반영하고, 저장을 눌러야 plans에 들어감
+ *     종료 시간이 시작 시간보다 이르면 다음 날 끝나는 계획으로 봄 (예: 23:00 ~ 00:30)
+ * ========================================================= */
+const editDialog = ref(null)  // 팝업 요소. 화면이 만들어지기 전에는 null
+const editingDate = ref(null) // 고치고 있는 날짜
+const draft = ref([])         // [{ key, source, subject, title, startTime, endTime }, ...]
+const editError = ref('')
+let draftKey = 0
+
+const editingLabel = computed(() => {
+  const d = editingDate.value
+  if (!d) return ''
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW_LABELS[d.getDay()]}) 계획`
+})
+
+function startsOn(plan, key) {
+  return dateKey(new Date(plan.start)) === key
+}
+
+function openEditor(date) {
+  const key = dateKey(date)
+  editingDate.value = date
+  draft.value = plans.value
+    .filter(plan => startsOn(plan, key))
+    .sort((a, b) => new Date(a.start) - new Date(b.start))
+    .map(plan => ({
+      key: draftKey++,
+      source: plan, // 원래 계획 (저장할 때 다른 필드는 그대로 유지)
+      subject: plan.subject,
+      title: plan.title ?? '',
+      startTime: fmtClock(new Date(plan.start)),
+      endTime: fmtClock(new Date(plan.end)),
+    }))
+  editError.value = ''
+  editDialog.value.showModal()
+}
+
+// 새 계획 줄: 마지막 계획이 끝나는 시간부터 1시간 (없으면 09:00 ~ 10:00)
+function addDraftRow() {
+  const startTime = draft.value.at(-1)?.endTime || '09:00'
+  draft.value.push({
+    key: draftKey++,
+    source: null,
+    subject: '',
+    title: '',
+    startTime,
+    endTime: fmtTime((toMinutes(startTime) + 60) % 1440),
+  })
+}
+
+function removeDraftRow(index) {
+  draft.value.splice(index, 1)
+}
+
+function endsNextDay(row) {
+  return Boolean(row.startTime && row.endTime) && row.endTime < row.startTime
+}
+
+function draftError(rows) {
+  if (rows.some(row => !row.subject)) return '과목을 입력해 주세요.'
+  if (rows.some(row => !row.startTime || !row.endTime)) return '시작 시간과 종료 시간을 입력해 주세요.'
+  if (rows.some(row => row.startTime === row.endTime)) return '시작 시간과 종료 시간이 같은 계획이 있어요.'
+  return ''
+}
+
+// 그날 시작하는 계획을 draft 내용으로 통째로 바꿈 → 주간 플래너에도 바로 반영
+function saveEditor() {
+  const rows = draft.value.map(row => ({ ...row, subject: row.subject.trim(), title: row.title.trim() }))
+  editError.value = draftError(rows)
+  if (editError.value) return
+
+  const date = editingDate.value
+  const key = dateKey(date)
+  const edited = rows.map(row => ({
+    ...row.source,
+    subject: row.subject,
+    title: row.title,
+    start: withTime(date, row.startTime),
+    end: withTime(endsNextDay(row) ? addDays(date, 1) : date, row.endTime),
+  }))
+
+  plans.value = [...plans.value.filter(plan => !startsOn(plan, key)), ...edited]
+  editDialog.value.close()
+}
+
+// 저장하지 않고 닫음 (draft는 다음에 열 때 새로 만듦)
+function closeEditor() {
+  editDialog.value.close()
+}
+
+/* =========================================================
+ * 11. 화면 전환 (월간 달력 / 주간 플래너)
+ * ========================================================= */
+const VIEWS = [
+  { id: 'month', label: '월간' },
+  { id: 'week', label: '주간' },
+]
+const view = ref('week')
+
+function switchView(next) {
+  // 슬라이드 도중 주간 화면이 사라지면 transitionend가 오지 않으므로 바로 마무리
+  if (sliding.value) finishSlide()
+  view.value = next
 }
 </script>
 
@@ -377,7 +545,74 @@ function dayTotal(dayPlans) {
     class="planner"
     :style="{ '--row-h': ROW_H + 'px', '--slide-duration': SLIDE_DURATION + 'ms' }"
   >
-    <div class="planner-card">
+    <!-- ===== 오른쪽 위: 화면 전환 버튼 ===== -->
+    <div class="view-bar">
+      <div class="view-switch" role="group" aria-label="계획표 보기 전환">
+        <button
+          v-for="item in VIEWS"
+          :key="item.id"
+          type="button"
+          :class="{ active: view === item.id }"
+          :aria-pressed="view === item.id"
+          @click="switchView(item.id)"
+        >{{ item.label }}</button>
+      </div>
+    </div>
+
+    <!-- ===== 월간 달력: 날짜를 누르면 그날 계획을 고치는 창이 열림 ===== -->
+    <div v-if="view === 'month'" class="planner-card">
+      <div class="month-nav">
+        <button class="nav-btn" type="button" aria-label="이전 달" @click="changeMonth(-1)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+
+        <h2 class="month-label">{{ calendarLabel }}</h2>
+
+        <button class="nav-btn" type="button" aria-label="다음 달" @click="changeMonth(1)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="calendar">
+        <!-- 요일 헤더 -->
+        <div class="cal-row cal-head">
+          <div
+            v-for="(label, i) in DOW_LABELS"
+            :key="label"
+            class="dow"
+            :class="{ sun: i === 0, sat: i === 6 }"
+          >{{ label }}</div>
+        </div>
+
+        <!-- 날짜 칸 (누르면 수정 창) -->
+        <div v-for="(week, wi) in calendarWeeks" :key="wi" class="cal-row cal-week">
+          <button
+            v-for="day in week"
+            :key="day.key"
+            type="button"
+            class="cal-cell"
+            :class="[day.kind, { muted: !day.inMonth, today: day.isToday }]"
+            :aria-label="`${day.label} 계획 수정`"
+            @click="openEditor(day.date)"
+          >
+            <span class="dom">{{ day.dom }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="legend-text">날짜를 누르면 그날의 <b>계획을 고칠 수 있어요</b></span>
+      </div>
+    </div>
+
+    <!-- ===== 주간 플래너 ===== -->
+    <div v-else class="planner-card">
       <!-- ===== 상단: 주 이동 네비게이션 (◀ 2026년 10월 5주차 ▶) ===== -->
       <div class="week-nav">
         <button class="nav-btn" type="button" aria-label="이전 주" @click="slideTo(-1)">
@@ -491,18 +726,67 @@ function dayTotal(dayPlans) {
         </span>
       </div>
     </div>
+
+    <!-- ===== 날짜별 계획 수정 창 ===== -->
+    <dialog ref="editDialog" class="edit-dialog" aria-labelledby="edit-dialog-title">
+      <form class="edit-content" @submit.prevent="saveEditor">
+        <h3 id="edit-dialog-title" class="edit-title">{{ editingLabel }}</h3>
+
+        <ul v-if="draft.length" class="plan-rows">
+          <li v-for="(row, i) in draft" :key="row.key" class="plan-row">
+            <input
+              v-model="row.subject"
+              class="field subject-field"
+              list="planner-subjects"
+              placeholder="과목"
+              aria-label="과목"
+              required
+            >
+            <input
+              v-model="row.title"
+              class="field title-field"
+              placeholder="할 일 (선택)"
+              aria-label="할 일"
+            >
+            <div class="row-times">
+              <input v-model="row.startTime" class="field time-field" type="time" aria-label="시작 시간" required>
+              <span>~</span>
+              <input v-model="row.endTime" class="field time-field" type="time" aria-label="종료 시간" required>
+              <span class="next-day">{{ endsNextDay(row) ? '다음 날' : '' }}</span>
+            </div>
+            <button type="button" class="row-delete" aria-label="계획 삭제" title="삭제" @click="removeDraftRow(i)">×</button>
+          </li>
+        </ul>
+        <p v-else class="edit-empty">이 날은 아직 계획이 없어요.</p>
+
+        <button type="button" class="row-add" @click="addDraftRow">+ 계획 추가</button>
+
+        <p v-if="editError" class="edit-error" role="alert">{{ editError }}</p>
+
+        <div class="edit-actions">
+          <button type="submit" class="save-edit">저장</button>
+          <button type="button" @click="closeEditor">취소</button>
+        </div>
+      </form>
+
+      <!-- 과목 입력 자동완성: 지금까지 쓴 과목 -->
+      <datalist id="planner-subjects">
+        <option v-for="name in subjectNames" :key="name" :value="name" />
+      </datalist>
+    </dialog>
   </div>
 </template>
 
 <style scoped>
 /* =========================================================
- * 1. 페이지 · 카드
+ * 1. 페이지 · 카드 (전환 버튼 줄 아래에 월간 또는 주간 카드 하나)
  * ========================================================= */
 .planner {
   min-height: 100%;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
   padding: 24px;
   background-color: #f6f7f9;
   color: #2b2f36;
@@ -519,6 +803,51 @@ function dayTotal(dayPlans) {
   padding: 24px 28px;
   /* 사이드바가 열리면 화면 너비와 카드 너비가 달라서, 카드 너비 기준으로 레이아웃을 바꿈 */
   container-type: inline-size;
+}
+
+/* 화면 전환 버튼 (카드 오른쪽 위에 맞춤) */
+.view-bar {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.view-switch {
+  display: inline-flex;
+  padding: 4px;
+  border: 1px solid #e2e5ec;
+  border-radius: 999px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 6px rgba(20, 24, 40, 0.04);
+}
+
+.view-switch button {
+  padding: 7px 18px;
+  border: 0;
+  border-radius: 999px;
+  background-color: transparent;
+  color: #5a6472;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.view-switch button:not(.active):hover {
+  color: #ff6b35;
+}
+
+.view-switch button.active {
+  background-color: #ff6b35;
+  color: #ffffff;
+  cursor: default;
+}
+
+.view-switch button:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
 }
 
 /* =========================================================
@@ -833,7 +1162,325 @@ function dayTotal(dayPlans) {
 }
 
 /* =========================================================
- * 7. 좁은 화면 (카드 너비 기준)
+ * 7. 월간 달력 (공부기록 페이지 달력과 같은 모양, 날짜만 표시)
+ * ========================================================= */
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.month-label {
+  margin: 0;
+  min-width: 160px;
+  text-align: center;
+  font-size: 26px;
+  font-weight: 800;
+  color: #1f2430;
+  white-space: nowrap;
+}
+
+.calendar {
+  border: 1px solid #eef0f4;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cal-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+/* 요일 헤더 */
+.cal-head {
+  border-bottom: 1px solid #e3e6ec;
+}
+
+.cal-head .dow {
+  padding: 12px 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #7a8290;
+}
+
+.cal-head .dow.sun {
+  color: #e5484d;
+}
+
+.cal-head .dow.sat {
+  color: #3b6fe0;
+}
+
+.cal-week + .cal-week {
+  border-top: 1px solid #eef0f4;
+}
+
+/* 날짜 칸 (버튼) */
+.cal-cell {
+  display: flex;
+  align-items: flex-start;
+  min-height: 112px;
+  padding: 10px;
+  border: 0;
+  background-color: #ffffff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.cal-cell + .cal-cell {
+  border-left: 1px solid #f0f2f5;
+}
+
+.cal-cell:hover {
+  background-color: #fff4ee;
+}
+
+.cal-cell:focus-visible {
+  outline: 2px solid #ff6b35;
+  outline-offset: -2px;
+}
+
+.cal-cell .dom {
+  font-size: 16px;
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.cal-cell.sun .dom {
+  color: #e5484d;
+}
+
+.cal-cell.sat .dom {
+  color: #3b6fe0;
+}
+
+.cal-cell.muted .dom {
+  opacity: 0.35;
+}
+
+.cal-cell.today {
+  background-color: #fff4ee;
+}
+
+.cal-cell.today:hover {
+  background-color: #ffe9dd;
+}
+
+.cal-cell.today .dom {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background-color: #ff6b35;
+  color: #ffffff;
+}
+
+/* =========================================================
+ * 8. 날짜별 계획 수정 창
+ *    한 줄 = [과목] [할 일] [시작 ~ 종료 (다음 날)] [×]
+ * ========================================================= */
+.edit-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 28px;
+  overflow-y: auto;
+  border: 1px solid #e7e9ee;
+  border-radius: 20px;
+  background: #ffffff;
+  color: #2b2f36;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 25%);
+}
+
+.edit-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.edit-content {
+  display: grid;
+  gap: 16px;
+}
+
+.edit-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #1f2430;
+}
+
+.plan-rows {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto 32px;
+  grid-template-areas: 'subject title times delete';
+  gap: 8px;
+  align-items: center;
+}
+
+.subject-field {
+  grid-area: subject;
+}
+
+.title-field {
+  grid-area: title;
+}
+
+.row-times {
+  grid-area: times;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #7a8290;
+}
+
+.field {
+  height: 38px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid #d5d9e0;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #1f2430;
+  font: inherit;
+  font-size: 14px;
+}
+
+.field:focus {
+  outline: none;
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 3px rgb(255 107 53 / 18%);
+}
+
+.time-field {
+  width: 112px;
+  padding: 0 8px;
+}
+
+/* 자리를 항상 차지해서 '다음 날'이 생겨도 줄 정렬이 흐트러지지 않게 */
+.next-day {
+  width: 3.4em;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ff6b35;
+  white-space: nowrap;
+}
+
+.row-delete {
+  grid-area: delete;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background-color: transparent;
+  color: #9aa1ac;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.row-delete:hover {
+  background-color: #fdecec;
+  color: #e5484d;
+}
+
+.edit-empty {
+  margin: 0;
+  padding: 20px 0;
+  text-align: center;
+  font-size: 14px;
+  color: #7a8290;
+}
+
+.row-add {
+  justify-self: start;
+  padding: 8px 14px;
+  border: 1px dashed #ff6b35;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #ff6b35;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.row-add:hover {
+  background-color: #fff4ee;
+}
+
+.edit-error {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #e5484d;
+}
+
+.edit-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.edit-actions button {
+  min-height: 48px;
+  padding: 10px;
+  border: 1px solid #d5d9e0;
+  border-radius: 12px;
+  background-color: #f5f6f7;
+  color: #202428;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.edit-actions .save-edit {
+  background-color: #ff6b35;
+  border-color: #ff6b35;
+  color: #ffffff;
+}
+
+.edit-actions button:focus-visible,
+.row-add:focus-visible,
+.row-delete:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* 좁은 화면: [과목 ×] / [할 일] / [시간] 세 줄로 */
+@media (max-width: 560px) {
+  .edit-dialog {
+    padding: 20px 16px;
+  }
+
+  .plan-row {
+    grid-template-columns: minmax(0, 1fr) 32px;
+    grid-template-areas:
+      'subject delete'
+      'title title'
+      'times times';
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eef0f4;
+  }
+}
+
+/* =========================================================
+ * 9. 좁은 화면 (카드 너비 기준)
  * ========================================================= */
 @media (max-width: 640px) {
   .planner {
@@ -855,8 +1502,13 @@ function dayTotal(dayPlans) {
     min-width: 0;
   }
 
-  .week-title {
+  .week-title,
+  .month-label {
     font-size: 19px;
+  }
+
+  .month-nav {
+    gap: 12px;
   }
 
   .this-week-btn {
@@ -881,6 +1533,15 @@ function dayTotal(dayPlans) {
   .block-title,
   .block-time {
     display: none;
+  }
+
+  .cal-cell {
+    min-height: 64px;
+    padding: 6px;
+  }
+
+  .cal-cell .dom {
+    font-size: 14px;
   }
 }
 </style>
