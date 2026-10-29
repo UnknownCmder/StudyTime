@@ -3,6 +3,7 @@ const express = require('express')
 const app = express()
 const cors = require('cors')
 const path = require('path')
+const session = require('express-session')
 require('./database/init_setting_DB')
 
 dotenv.config({ path: path.join(__dirname, '.env') }); //환경 변수 로드
@@ -14,6 +15,18 @@ app.use(cors({
     credentials: true,
 }))
 app.use(express.json())
+app.use(session({
+    name: 'studytime_sid',
+    secret: process.env.SESSION_SECRET || 'studytime-development-secret-change-me',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 1000 * 60 * 60 * 24,
+    },
+}))
 app.use('/', express.static(path.join(__dirname, 'public')))
 
 const index = require('./routes/index');

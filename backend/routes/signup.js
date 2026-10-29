@@ -17,8 +17,8 @@ router.post('/', async function (req, res, next) {
         return;
     }
 
-    if (!/^[A-Za-z0-9_*!@#$%^&*()]+$/.test(password)) {
-        res.status(400).send({ message: '비밀번호는 영어, 숫자, 밑줄(_)과 숫자 위 특수문자만 사용할 수 있습니다.' });
+    if (!/^[A-Za-z0-9_*!@#$%^&*()]+$/.test(password) || !/^[A-Za-z0-9_*!@#$%^&*()]+$/.test(id)) {
+        res.status(400).send({ message: '아이디와 비밀번호는 영어, 숫자, 밑줄(_)과 숫자 위 특수문자만 사용할 수 있습니다.' });
         return;
     }
 

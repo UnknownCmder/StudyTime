@@ -7,23 +7,11 @@ const router = useRouter()
 const { signup } = useAuth()
 const id = ref('')
 const password = ref('')
-const isPasswordValid = () => {
-    if (typeof password.value !== 'string' || password.value.length < 6 || password.value.length > 20) {
-        return false;
-    }
-    return /^[A-Za-z0-9_!@#$%^&*()]+$/.test(password.value);
-}
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 
 async function handleSignup() {
     errorMessage.value = ''
-    if (!isPasswordValid()) {
-        errorMessage.value = '비밀번호는 영어, 숫자, 밑줄(_)과 별표(*)만 사용할 수 있습니다.'
-        return
-    }
-    isSubmitting.value = true
-
     try {
         // 아이디가 중복되지 않으면 서버가 비밀번호를 해싱해서 DB에 저장합니다.
         await signup(id.value, password.value)
@@ -50,9 +38,6 @@ async function handleSignup() {
             <label class="input-group">
                 <span>비밀번호</span>
                 <input v-model="password" type="password" autocomplete="new-password" required />
-                <small v-if="password && !isPasswordValid()" class="password-warning">
-                    영어, 숫자, _ 와 * 만 사용할 수 있습니다.
-                </small>
             </label>
 
             <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
