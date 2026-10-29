@@ -34,7 +34,7 @@ router.post('/', (req, res, next) => {
     }
 
     // 입력한 아이디에 해당하는 계정의 비밀번호 해시를 조회합니다.
-    db.get('SELECT id, password FROM users WHERE id = ?', [id], async (err, user) => {
+    db.get('SELECT id, user_text_id, password FROM users WHERE user_text_id = ?', [id], async (err, user) => {
         // DB 오류는 Express의 오류 처리기로 전달합니다.
         if (err) return next(err);
         // 계정이 없을 때도 비밀번호 오류와 같은 메시지로 응답합니다.
@@ -61,7 +61,7 @@ router.post('/', (req, res, next) => {
                 // 세션 저장이 끝난 뒤 성공 응답을 보냅니다.
                 req.session.save((saveError) => {
                     if (saveError) return next(saveError);
-                    res.send({ isLoggedIn: true, userId: user.id });
+                    res.send({ isLoggedIn: true, userId: user.id, userTextId: user.user_text_id });
                 });
             });
         } catch (error) {

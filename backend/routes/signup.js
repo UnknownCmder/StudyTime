@@ -27,7 +27,7 @@ router.post('/', async function (req, res, next) {
         const hashedPassword = await hashPassword(password);
 
         db.run(
-            'INSERT INTO users (id, password) VALUES (?, ?)',
+            'INSERT INTO users (user_text_id, password) VALUES (?, ?)',
             [id, hashedPassword],
             function (err) {
                 if (!err) {
@@ -37,7 +37,7 @@ router.post('/', async function (req, res, next) {
                 }
 
                 if (err.code === 'SQLITE_CONSTRAINT') {
-                    // users.id가 PRIMARY KEY라서 같은 아이디가 있으면 여기로 들어옵니다.
+                    // users.user_text_id가 UNIQUE라서 같은 아이디가 있으면 여기로 들어옵니다.
                     res.status(409).send({ message: '이미 사용 중인 아이디입니다.' });
                     return;
                 }

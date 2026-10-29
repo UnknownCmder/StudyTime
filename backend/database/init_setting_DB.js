@@ -1,13 +1,5 @@
 const db = require('./connectDB');
 
-// db.run(`DROP TABLE IF EXISTS users`, (err) => { //users 테이블이 존재하면 삭제  
-//     if (err) {
-//         console.error('Error dropping users table:', err.message);
-//     } else {
-//         console.log('Users table dropped if it existed.');
-//     }
-// });
-
 db.run('PRAGMA foreign_keys = ON;', (err) => { // 외래키 제약 조건 활성화
     if (err) {
         console.error('Error enabling foreign key constraints:', err.message);
@@ -18,7 +10,8 @@ db.run('PRAGMA foreign_keys = ON;', (err) => { // 외래키 제약 조건 활성
 
 //users 테이블 생성
 db.run(`CREATE TABLE IF NOT EXISTS users ( 
-    id TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_text_id TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL
 )`, (err) => { 
     if (err) {
@@ -35,7 +28,10 @@ db.run(`CREATE TABLE IF NOT EXISTS user_subjects (
     subject_name TEXT NOT NULL,
     subject_color TEXT NOT NULL,
 
-    FOREIGN KEY (user_num_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_num_id) R
+        EFERENCES users(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
 )`, (err) => {
     if (err) {
         console.error('Error creating user_subjects table:', err.message);
@@ -52,10 +48,14 @@ db.run(`CREATE TABLE IF NOT EXISTS study_record (
     start_time INTEGER NOT NULL,
     end_time INTEGER default 0,
     
-    FOREIGN KEY (user_num_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (subject_name) REFERENCES user_subjects(subject_name) ON DELETE CASCADE
-
-    INDEX idx_study_record_user_time (user_num_id, start_time, end_time)
+    FOREIGN KEY (user_num_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (subject_name)
+        REFERENCES user_subjects(subject_name)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
 )`, (err) => {
     if (err) {
         console.error('Error creating study_record table:', err.message);
@@ -63,6 +63,9 @@ db.run(`CREATE TABLE IF NOT EXISTS study_record (
         console.log('Study_record table created or already exists.');
     }
 });
+
+db.run(`CREATE INDEX IF NOT EXISTS idx_study_record_user_time
+    ON study_record (user_num_id, start_time, end_time)`);
 
 //study_plan 테이블 생성
 db.run(`CREATE TABLE IF NOT EXISTS study_plan (
@@ -74,8 +77,6 @@ db.run(`CREATE TABLE IF NOT EXISTS study_plan (
 
     FOREIGN KEY (user_num_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (subject_name) REFERENCES user_subjects(subject_name) ON DELETE CASCADE
-
-    INDEX idx_study_plan_user_time (user_num_id, start_time, end_time)
 )`, (err) => {
     if (err) {
         console.error('Error creating study_plan table:', err.message);
@@ -83,3 +84,6 @@ db.run(`CREATE TABLE IF NOT EXISTS study_plan (
         console.log('Study_plan table created or already exists.');
     }
 });
+
+db.run(`CREATE INDEX IF NOT EXISTS idx_study_plan_user_time
+    ON study_plan (user_num_id, start_time, end_time)`);
