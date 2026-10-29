@@ -34,14 +34,15 @@ const signin = require('./routes/signin');
 const signup = require('./routes/signup');
 const studyRecord = require('./routes/studyRecord');
 const studyPlan = require('./routes/studyPlan');
+const subjects = require('./routes/subjects');
 
 app.use('/api/signin', signin); // 로그인, 로그아웃 및 로그인 상태 API
 app.use('/api/signup', signup);
 app.use('/api/study-records', studyRecord);
 app.use('/api/study-plans', studyPlan);
+app.use('/api/subjects', subjects);
 app.use('/', index);
 
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`)
 })
-

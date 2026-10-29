@@ -8,7 +8,7 @@ const sidebarList = [
     { name: '스탑워치', path: '/stopwatch' },
     { name: '시간표', path: '/about' },
     { name: '공부기록', path: '/record' },
-    { name: '설정', path: '/about' },
+    { name: '설정', path: '/settings' },
 ]
 
 const isSidebarOpen = ref(true)
@@ -16,7 +16,7 @@ const sidebarRef = ref(null)
 const router = useRouter()
 const route = useRoute()
 const { isLoggedIn, isLoginLoading, fetchLoginStatus, logout } = useAuth()
-const requiresLogin = computed(() => ['home', 'about', 'record'].includes(route.name))
+const requiresLogin = computed(() => ['home', 'about', 'record', 'settings'].includes(route.name))
 
 function toggleSidebar() {
   // 현재 화면 너비 확인

@@ -36,7 +36,12 @@ const router = createRouter({
       path: '/stopwatch',
       name: 'stopwatch',
       component: () => import('../views/StopwatchView.vue'),
-    }
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('../views/SettingView.vue'),
+    },
   ],
 })
 
