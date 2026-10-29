@@ -28,6 +28,16 @@ router.post('/', (req, res, next) => {
         return;
     }
 
+    if (typeof id !== 'string' || id.length < 1 || id.length > 20) {
+        res.status(400).send({ message: '아이디는 1자 이상 20자 이하로 입력해주세요.' });
+        return;
+    }
+
+    if (typeof password !== 'string' || password.length < 6 || password.length > 20) {
+        res.status(400).send({ message: '비밀번호는 6자 이상 20자 이하로 입력해주세요.' });
+        return;
+    }
+
     if (!/^[A-Za-z0-9_*!@#$%^&*()]+$/.test(password) || !/^[A-Za-z0-9_*!@#$%^&*()]+$/.test(id)) {
         res.status(400).send({ message: '아이디와 비밀번호는 영어, 숫자, 밑줄(_)과 숫자 위 특수문자만 사용할 수 있습니다.' });
         return;

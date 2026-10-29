@@ -67,23 +67,4 @@ db.run(`CREATE TABLE IF NOT EXISTS study_record (
 db.run(`CREATE INDEX IF NOT EXISTS idx_study_record_user_time
     ON study_record (user_num_id, start_time, end_time)`);
 
-//study_plan 테이블 생성
-db.run(`CREATE TABLE IF NOT EXISTS study_plan (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_num_id INTEGER NOT NULL,
-    subject_name TEXT NOT NULL,
-    start_time INTEGER NOT NULL,
-    end_time INTEGER NOT NULL,
 
-    FOREIGN KEY (user_num_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (subject_name) REFERENCES user_subjects(subject_name) ON DELETE CASCADE
-)`, (err) => {
-    if (err) {
-        console.error('Error creating study_plan table:', err.message);
-    } else {
-        console.log('Study_plan table created or already exists.');
-    }
-});
-
-db.run(`CREATE INDEX IF NOT EXISTS idx_study_plan_user_time
-    ON study_plan (user_num_id, start_time, end_time)`);

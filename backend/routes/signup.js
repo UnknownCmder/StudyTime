@@ -12,6 +12,11 @@ router.post('/', async function (req, res, next) {
         return;
     }
 
+    if (typeof id !== 'string' || id.length < 1 || id.length > 20) {
+        res.status(400).send({ message: '아이디는 1자 이상 20자 이하로 입력해주세요.' });
+        return;
+    }
+
     if (typeof password !== 'string' || password.length < 6 || password.length > 20) {
         res.status(400).send({ message: '비밀번호는 문자가 포함된 6자 이상 20자 이하로 입력해주세요.' });
         return;

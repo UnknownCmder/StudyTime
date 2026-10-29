@@ -1,5 +1,8 @@
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
+import { useAuth } from '../composables/useAuth'
+
+const { isLoggedIn } = useAuth()
 
 const stopwatchElapsed = ref(0) //스탑워치 경과시간 0으로 설정 및 화면 변환
 const stopwatchRunning = ref(false) //스탑워치 작동 상태 false로 설정
@@ -106,7 +109,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="stopwatch-page">
+  <p v-if="!isLoggedIn" class="login-required-message">로그인을 해야 이용할 수 있습니다</p>
+  <main v-else class="stopwatch-page">
     <section class="stopwatch-shell" aria-labelledby="stopwatch-title">
       <h1 id="stopwatch-title">스탑워치</h1>
 
