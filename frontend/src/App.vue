@@ -6,7 +6,7 @@ import { useAuth } from './composables/useAuth'
 const sidebarList = [
     { name: '홈', path: '/' },
     { name: '스탑워치', path: '/stopwatch' },
-    { name: '시간표', path: '/about' },
+    { name: '시간표', path: '/planner' },
     { name: '공부기록', path: '/record' },
     { name: '설정', path: '/about' },
 ]
