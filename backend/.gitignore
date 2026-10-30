@@ -8,6 +8,7 @@ node_modules/
 createKey.js
 
 # SQLite database files
+*.db
 database/*.db
 database/*.db-*
 
