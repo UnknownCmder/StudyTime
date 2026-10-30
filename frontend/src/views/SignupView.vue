@@ -42,7 +42,7 @@ async function handleSignup() {
 
             <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
 
-            <button id="btnSignup" type="submit" :disabled="isSubmitting">
+            <button id="btnSignup" type="submit" class="rainbow-btn" :disabled="isSubmitting">
                 {{ isSubmitting ? '가입 중...' : '회원가입' }}
             </button>
 
@@ -57,16 +57,16 @@ async function handleSignup() {
     align-items: center;
     justify-content: center;
     min-height: calc(100vh - 120px);
-    color: #222;
 }
 
 .auth-form {
     width: min(100%, 420px);
     padding: 28px;
-    border: 1px solid #ddd;
+    border: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
     border-radius: 8px;
-    background: #fff;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    background: var(--surface-color);
+    color: var(--text-color);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
 }
 
 .auth-form h2 {
@@ -89,34 +89,31 @@ async function handleSignup() {
 .input-group input {
     width: 100%;
     padding: 12px;
-    border: 1px solid #bbb;
+    border: 1px solid color-mix(in srgb, var(--text-color) 24%, transparent);
     border-radius: 6px;
-    color: #222;
+    background: var(--bg-color);
+    color: var(--text-color);
     font: inherit;
+}
+
+.input-group input:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 1px;
 }
 
 #btnSignup {
     width: 100%;
     margin-top: 8px;
     padding: 12px;
-    border: none;
-    border-radius: 6px;
-    background: #333;
-    color: #fff;
-    cursor: pointer;
+    color: var(--text-color);
     font: inherit;
     font-weight: 700;
-}
-
-#btnSignup:disabled {
-    cursor: default;
-    opacity: 0.6;
 }
 
 .auth-link {
     display: inline-block;
     margin-top: 16px;
-    color: #333;
+    color: var(--text-color);
     font-weight: 700;
 }
 
@@ -126,10 +123,4 @@ async function handleSignup() {
     font-weight: 700;
 }
 
-.password-warning {
-    display: block;
-    margin-top: 6px;
-    color: #c62828;
-    font-weight: 600;
-}
 </style>

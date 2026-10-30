@@ -13,5 +13,3 @@ if errorlevel 1 (
 echo [2/2] Starting backend...
 cd /d "%~dp0backend"
 node server.js
-
-pause

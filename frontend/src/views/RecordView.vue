@@ -1,18 +1,45 @@
 <script setup>
-// 공부 기록 페이지 - "디자인(레이아웃) 우선" 버전
-// 아직 실제 기능(월 이동, 데이터 연동)은 연결하지 않고 정적 화면만 구성합니다.
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useAuth } from '../composables/useAuth'
 
-const { isLoggedIn } = useAuth()
-
-/* =========================================================
- * 1. 기본 설정 (임시 값)
- * ========================================================= */
-const selectedMonth = ref(new Date(2026, 6, 1))
+const { isLoggedIn, fetchLoginStatus } = useAuth()
+const selectedMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 const currentYear = computed(() => selectedMonth.value.getFullYear())
 const currentMonth = computed(() => selectedMonth.value.getMonth() + 1)
 const today = new Date()
+const records = ref([])
+const isLoading = ref(false)
+const loadError = ref('')
+
+async function loadRecords() {
+  isLoading.value = true
+  loadError.value = ''
+  try {
+    const response = await fetch('/api/study-records', { credentials: 'include' })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.message || '공부 기록을 불러오지 못했습니다.')
+    }
+    const data = await response.json()
+    records.value = data.map(record => ({
+      subject: record.subject_name,
+      start: record.start_time,
+      end: record.end_time,
+    }))
+  } catch (error) {
+    loadError.value = error.message || '공부 기록을 불러오지 못했습니다.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(async () => {
+  try {
+    if (await fetchLoginStatus()) await loadRecords()
+  } catch (error) {
+    loadError.value = error.message || '로그인 상태를 확인하지 못했습니다.'
+  }
+})
 
 function changeMonth(offset) {
   selectedMonth.value = new Date(
@@ -22,40 +49,6 @@ function changeMonth(offset) {
   )
   openWeek.value = null
 }
-
-/* =========================================================
- * 2. 입력 데이터 (다른 코드에서 props로 넘겨받음)
- *
- *    records: [{ subject, start, end }, ...]
- *      - subject : 과목 이름 (예: '수학')
- *      - start   : 공부 시작 시각 ┐ Date 객체, '2026-07-09T09:05' 같은 문자열,
- *      - end     : 공부 종료 시각 ┘ 또는 타임스탬프(ms) - new Date()가 읽을 수 있으면 OK
- *
- *    사용 예) <RecordView :records="records" />
- *    records를 넘기지 않으면 아래 SAMPLE_RECORDS(미리보기용)를 보여줍니다.
- * ========================================================= */
-const props = defineProps({
-  records: { type: Array, default: undefined },
-})
-
-const SAMPLE_RECORDS = [
-  { subject: '수학', start: '2026-07-01T10:00', end: '2026-07-01T11:30' },
-  { subject: '영어', start: '2026-07-01T21:00', end: '2026-07-01T22:30' },
-  { subject: '국어', start: '2026-07-02T19:00', end: '2026-07-02T21:30' },
-  { subject: '영어', start: '2026-07-03T09:00', end: '2026-07-03T10:15' },
-  { subject: '수학', start: '2026-07-05T14:00', end: '2026-07-05T16:30' },
-  { subject: '과학', start: '2026-07-05T20:30', end: '2026-07-05T21:45' },
-  { subject: '영어', start: '2026-07-06T08:20', end: '2026-07-06T09:00' },
-  { subject: '수학', start: '2026-07-06T19:30', end: '2026-07-06T22:05' },
-  { subject: '국어', start: '2026-07-07T07:45', end: '2026-07-07T08:30' },
-  { subject: '과학', start: '2026-07-07T13:00', end: '2026-07-07T14:30' },
-  { subject: '수학', start: '2026-07-07T21:00', end: '2026-07-07T23:10' },
-  { subject: '영어', start: '2026-07-08T22:15', end: '2026-07-08T23:45' },
-  { subject: '수학', start: '2026-07-09T09:05', end: '2026-07-09T11:40' },
-  { subject: '국어', start: '2026-07-09T15:20', end: '2026-07-09T16:50' },
-]
-
-const records = computed(() => props.records ?? SAMPLE_RECORDS)
 
 /* =========================================================
  * 3. 과목별 색상
@@ -318,6 +311,10 @@ function dayTotal(sessions) {
         </button>
       </div>
 
+      <p v-if="isLoading" class="record-status" role="status">공부 기록을 불러오는 중입니다.</p>
+      <p v-else-if="loadError" class="record-status error" role="alert">{{ loadError }}</p>
+      <p v-else-if="records.length === 0" class="record-status">저장된 공부 기록이 없습니다.</p>
+
       <!-- ===== 월간 캘린더 ===== -->
       <div class="calendar">
         <!-- 요일 헤더 -->
@@ -444,6 +441,16 @@ function dayTotal(sessions) {
   border-radius: 16px;
   box-shadow: 0 8px 24px rgba(20, 24, 40, 0.06);
   padding: 24px 28px 24px;
+}
+
+.record-status {
+  margin: 0 0 16px;
+  color: #555b61;
+  text-align: center;
+}
+
+.record-status.error {
+  color: #c62828;
 }
 
 /* =========================================================

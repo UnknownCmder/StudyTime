@@ -1,6 +1,125 @@
-html, body, #app {
+:root { /* 다크 모드 */
+    color-scheme: dark;
+
+    --bg-color: #2b2b2b;
+    --surface-color: #1e1e2e;
+    --text-color: #ffffff;
+    --primary-color: #6366f1;
+
+    --rainbow-btn-background:#171044;
+    --rainbow-btn-hover-background:#7029c4;
+
+    /* 스톱워치 라이트 모드에서만 사용하는 패널 색상 기본값 */
+    --stopwatch-shell-background: linear-gradient(145deg, #303743, #1e242d);
+    --stopwatch-shell-border: #475569;
+    --stopwatch-shell-text: #f8fafc;
+    --stopwatch-shell-shadow: 0 24px 55px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+body {
     margin: 0;
-    padding: 0;
-    width: 100%;
-    min-height: 100%;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+button {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* 라이트 모드 */
+.light-mode {
+    color-scheme: light;
+
+    --bg-color: #ffffff;
+    --surface-color: #f1f5f9;
+    --text-color: #111827;
+    --primary-color: #4f46e5;
+
+    --rainbow-btn-background:#f1f5f9;
+    --rainbow-btn-hover-background:#7f8081;
+
+    /* 화이트 모드 스톱워치 패널 색상 */
+    --stopwatch-shell-background: #f1f5f9;
+    --stopwatch-shell-border: #cbd5e1;
+    --stopwatch-shell-text: #111827;
+    --stopwatch-shell-shadow: 0 24px 55px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+
+/* 버튼 바깥의 무지개 테두리 */
+.rainbow-btn {
+    position: relative;
+    isolation: isolate;
+    border: none;
+    border-radius: 14px;
+    padding: 3px;
+
+    background: linear-gradient(
+        90deg,
+        #ff1744,
+        #ff9100,
+        #ffea00,
+        #00e676,
+        #00b0ff,
+        #651fff,
+        #ff1744
+    );
+
+    background-size: 300% 300%;
+    animation: rainbow-flow 10s linear infinite;
+    cursor: pointer;
+    transition: transform 0.25s, filter 0.25s;
+}
+
+/* 버튼 내부 색 */
+.rainbow-btn::before {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    background: var(--rainbow-btn-background);
+    border-radius: 11px;
+    z-index: -1;
+    transition: background 0.3s;
+}
+
+/* 버튼 글자 */
+.rainbow-btn .inner {
+    display: block;
+    padding: 15px 36px;
+    color: var(--text-color);
+    background: transparent;
+    border-radius: 11px;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+/* 마우스를 올렸을 때 */
+.rainbow-btn:hover::before {
+    background: var(--rainbow-btn-hover-background);
+}
+
+.rainbow-btn:hover {
+    transform: translateY(-2px);
+    filter: drop-shadow(0 0 8px #a855f7);
+}
+
+/* 클릭했을 때 */
+.rainbow-btn.clicked::before {
+    background: #007e87;
+}
+
+.rainbow-bin:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* 무지개 애니메이션 */
+@keyframes rainbow-flow {
+    0% {
+        background-position: 0% 50%;
+    }
+    100% {
+        background-position: 300% 50%;
+    }
 }

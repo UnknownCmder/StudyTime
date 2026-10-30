@@ -121,15 +121,14 @@ onBeforeUnmount(() => {
       <div class="actions" aria-label="스탑워치 조작">
         <button
           type="button"
-          class="control-button"
-          :class="stopwatchStarted ? 'btnStop' : 'btnStart'"
+          class="control-button rainbow-btn"
           @click="stopwatchStarted ? stopStopwatch() : startStopwatch()"
         >
           {{ stopwatchStarted ? '중지' : '시작' }}
         </button>
         <button
           type="button"
-          class="control-button lap-button"
+          class="control-button rainbow-btn"
           :disabled="!stopwatchRunning"
           @click="recordLap"
         >
@@ -137,8 +136,7 @@ onBeforeUnmount(() => {
         </button>
         <button
           type="button"
-          class="control-button"
-          :class="stopwatchStarted && !stopwatchRunning ? 'resume-button' : 'pause-button'"
+          class="control-button rainbow-btn"
           :disabled="!stopwatchStarted"
           @click="stopwatchRunning ? pauseStopwatch() : startStopwatch()"
         >
@@ -175,8 +173,8 @@ onBeforeUnmount(() => {
           </select>
         </div>
         <div class="stop-dialog-actions">
-          <button type="submit" class="save-stop" autofocus>저장</button>
-          <button type="button" @click="cancelStopwatch">취소</button>
+          <button type="submit" class="rainbow-btn" autofocus>저장</button>
+          <button type="button" class="rainbow-btn" @click="cancelStopwatch">취소</button>
         </div>
       </form>
     </dialog>
@@ -190,7 +188,7 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   display: flex;
   padding: clamp(8px, 1.5vw, 20px);
-  color: #f8fafc;
+  color: var(--stopwatch-shell-text);
 }
 
 .stopwatch-shell {
@@ -201,12 +199,10 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   padding: clamp(28px, 5vw, 64px);
-  border: 1px solid #475569;
+  border: 1px solid var(--stopwatch-shell-border);
   border-radius: clamp(24px, 3vw, 40px);
-  background: linear-gradient(145deg, #303743, #1e242d);
-  box-shadow:
-    0 24px 55px rgba(15, 23, 42, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: var(--stopwatch-shell-background);
+  box-shadow: var(--stopwatch-shell-shadow);
 }
 
 h1 {
@@ -247,26 +243,10 @@ h1 {
 .control-button {
   min-height: 58px;
   padding: 14px 18px;
-  border: 0;
-  border-radius: 18px;
-  color: #ffffff;
   cursor: pointer;
   font: inherit;
   font-size: clamp(16px, 2vw, 21px);
   font-weight: 700;
-  transition:
-    transform 160ms ease,
-    filter 160ms ease,
-    opacity 160ms ease;
-}
-
-.control-button:not(:disabled):hover {
-  filter: brightness(1.1);
-  transform: translateY(-2px);
-}
-
-.control-button:not(:disabled):active {
-  transform: translateY(0);
 }
 
 .control-button:focus-visible {
@@ -276,27 +256,6 @@ h1 {
 
 .control-button:disabled {
   cursor: not-allowed;
-  opacity: 0.38;
-}
-
-.btnStart {
-  background: #15803d;
-}
-
-.btnStop {
-  background: #b91c1c;
-}
-
-.lap-button {
-  background: #475569;
-}
-
-.pause-button {
-  background: #b45309;
-}
-
-.resume-button {
-  background: #2563eb;
 }
 
 .lap-panel {
@@ -358,7 +317,6 @@ h1 {
   .control-button {
     min-height: 52px;
     padding: 10px 6px;
-    border-radius: 14px;
     font-size: 15px;
   }
 }
@@ -443,18 +401,8 @@ h1 {
 .stop-dialog-actions button {
     min-height: 56px;
     padding: 12px;
-    border: 1px solid #73797f;
-    border-radius: 16px;
-    background: #f5f6f7;
-    color: #202428;
     font: inherit;
     cursor: pointer;
-}
-
-.stop-dialog-actions .save-stop {
-    background: #15803d;
-    border-color: #15803d;
-    color: #ffffff;
 }
 
 .stop-dialog-actions button:focus-visible {

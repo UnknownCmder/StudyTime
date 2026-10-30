@@ -87,7 +87,7 @@ onMounted(fetchLoginStatus)
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    color: white;
+    color: var(--text-color);
     font-family: 'Arial', sans-serif;
   overflow: hidden; /* 스크롤바 관리 */
 
@@ -102,8 +102,9 @@ onMounted(fetchLoginStatus)
     grid-row: 1 / 2;
 
     display: flex;
-    background-color: #333;
-    color: white;
+    background-color: var(--surface-color);
+    color: var(--text-color);
+    border-bottom: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
     align-items: center;
     justify-content: space-between;
     padding: 0 20px;
@@ -124,19 +125,19 @@ onMounted(fetchLoginStatus)
 
 #btnLogin {
     border: none;
-    color: white;
+    color: var(--text-color);
     cursor: pointer;
     font: inherit;
     font-weight: bold;
     padding: 8px 15px;
     border-radius: 4px;
-    background-color: #555;
+    background-color: var(--surface-color);
     text-decoration: none;
     transition: background-color 0.3s ease;
 }
 
 #btnLogin:hover {
-    background-color: #777;
+    background-color: var(--bg-color);
 }
 
 #btnLogin:disabled {
@@ -148,14 +149,14 @@ onMounted(fetchLoginStatus)
 .btn-sidebar {
     background: none;
     border: none;
-    color: white;
+    color: var(--text-color);
     font-size: 24px;
     cursor: pointer;
     padding: 5px;
 }
 
 .btn-sidebar:hover {
-    color: #ddd;
+    color: var(--primary-color);
 }
 
 
@@ -165,8 +166,8 @@ onMounted(fetchLoginStatus)
     grid-column: 1 / 2;
     grid-row: 2 / 3;
     height: 100%;
-    background-color: #555;
-    border-right: 1px solid #ddd;
+    background-color: var(--surface-color);
+    border-right: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
     transition: transform 0.3s ease; /* 부드러운 이동 효과 */
     overflow-y: auto;
     
@@ -184,14 +185,14 @@ onMounted(fetchLoginStatus)
     display: block;
     padding: 15px 20px;
     text-decoration: none;
-    color: white;
+    color: var(--text-color);
     font-weight: bold;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
 }
 
 .menu-list li a:hover {
-    color: #333;
-    background-color: #ddd;
+    color: var(--text-color);
+    background-color: var(--bg-color);
 }
 
 /* --- 메인 콘텐츠 스타일 --- */
@@ -200,7 +201,7 @@ onMounted(fetchLoginStatus)
     grid-column: 2 / 3;
     padding: 20px;
     overflow-y: auto; /* 내용이 많으면 스크롤 */
-    background-color: #fff;
+    background-color: var(--bg-color);
 }
 
 .login-required-message {
@@ -209,7 +210,7 @@ onMounted(fetchLoginStatus)
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #333;
+    color: var(--text-color);
     text-align: center;
     font-size: 1.25rem;
     font-weight: 600;
@@ -248,17 +249,18 @@ onMounted(fetchLoginStatus)
     width: 600px;
     margin: 100px auto;
     padding: 30px;
-    background-color: #333;
+    background-color: var(--surface-color);
     border-radius: 8px;
-    box-shadow: 0 0 10px #555;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--text-color) 24%, transparent);
 }
 
-.input-group input {
+.box-login .input-group input {
     width: 100%;
     padding: 10px;
     margin-top: 5px;
     border-radius: 4px;
     border: none;
-    color: black;
+    background-color: var(--bg-color);
+    color: var(--text-color);
 }
 </style>

@@ -55,7 +55,7 @@ onMounted(async () => {
 
             <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
 
-            <button id="btnLogin" type="submit" :disabled="isLoginLoading || isLoggedIn">
+            <button id="btnLogin" type="submit" class="rainbow-btn" :disabled="isLoginLoading || isLoggedIn">
                 {{ isLoginLoading ? '로그인 중...' : '로그인' }}
             </button>
 
@@ -70,16 +70,16 @@ onMounted(async () => {
     align-items: center;
     justify-content: center;
     min-height: calc(100vh - 120px);
-    color: #222;
 }
 
 .auth-form {
     width: min(100%, 420px);
     padding: 28px;
-    border: 1px solid #ddd;
+    border: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
     border-radius: 8px;
-    background: #fff;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    background: var(--surface-color);
+    color: var(--text-color);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
 }
 
 .auth-form h2 {
@@ -102,34 +102,31 @@ onMounted(async () => {
 .input-group input {
     width: 100%;
     padding: 12px;
-    border: 1px solid #bbb;
+    border: 1px solid color-mix(in srgb, var(--text-color) 24%, transparent);
     border-radius: 6px;
-    color: #222;
+    background: var(--bg-color);
+    color: var(--text-color);
     font: inherit;
+}
+
+.input-group input:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 1px;
 }
 
 #btnLogin {
     width: 100%;
     margin-top: 8px;
     padding: 12px;
-    border: none;
-    border-radius: 6px;
-    background: #333;
-    color: #fff;
-    cursor: pointer;
+    color: var(--text-color);
     font: inherit;
     font-weight: 700;
-}
-
-#btnLogin:disabled {
-    cursor: default;
-    opacity: 0.6;
 }
 
 .auth-link {
     display: inline-block;
     margin-top: 16px;
-    color: #333;
+    color: var(--text-color);
     font-weight: 700;
 }
 
