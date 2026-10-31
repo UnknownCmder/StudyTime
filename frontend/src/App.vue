@@ -31,6 +31,10 @@ function toggleSidebar() {
     }
 }
 
+function closeMobileSidebar() {
+    if (window.innerWidth <= 768) sidebarRef.value?.classList.remove('mobile-open')
+}
+
 async function handleAuthButtonClick() {
     if (!isLoggedIn.value) {
         router.push('/signin')
@@ -67,7 +71,7 @@ onMounted(fetchLoginStatus)
     <nav id="sidebar" ref="sidebarRef" class="sidebar" :class="{ closed: !isSidebarOpen }">
         <ul class="menu-list">
         <li v-for="site in sidebarList" :key="site.name">
-            <RouterLink :to="site.path">{{ site.name }}</RouterLink>
+            <RouterLink :to="site.path" @click="closeMobileSidebar">{{ site.name }}</RouterLink>
         </li>
         </ul>
     </nav>
@@ -225,13 +229,41 @@ onMounted(fetchLoginStatus)
 
 /* --- 반응형 (모바일) --- */
 @media (max-width: 768px) {
+    .app {
+        height: 100dvh;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 60px minmax(0, 1fr);
+    }
+
+    .header {
+        padding: 0 12px;
+    }
+
+    .header-content {
+        gap: 8px;
+    }
+
+    .logo {
+        font-size: 20px;
+    }
+
+    #btnLogin {
+        padding: 7px 10px;
+        white-space: nowrap;
+    }
+
     /* 모바일에서는 기본적으로 사이드바를 숨깁니다 */
     .sidebar {
-        position: absolute; /* 메인 콘텐츠 위에 뜸 */
-        height: 100%;
-        margin-left: -250px; /* 기본 숨김 상태 */
+        position: fixed;
+        top: 60px;
+        bottom: 0;
+        left: 0;
+        width: min(250px, 82vw);
+        height: auto;
+        margin-left: 0;
         z-index: 999;
         box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+        transform: translateX(-100%);
     }
 
     /* 모바일에서는 'closed' 클래스가 없을 때가 아니라
@@ -239,8 +271,20 @@ onMounted(fetchLoginStatus)
        JS에서 처리를 돕기 위해 아래와 같이 설정합니다. */
     
     /* 모바일에서 열렸을 때 */
-    .sidebar.mobile-open {
-        margin-left: 0;
+    .sidebar.closed {
+        transform: translateX(-100%);
+    }
+
+    .sidebar.mobile-open,
+    .sidebar.closed.mobile-open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        grid-column: 1;
+        grid-row: 2;
+        min-width: 0;
+        padding: 12px;
     }
 }
 

@@ -37,8 +37,8 @@ const studyPlan = require('./routes/studyPlan');
 
 app.use('/api/signin', signin); // 로그인, 로그아웃 및 로그인 상태 API
 app.use('/api/signup', signup);
-app.use('/api/study-records', studyRecord);
-app.use('/api/study-plans', studyPlan);
+app.use('/api/studyRecord', studyRecord);
+app.use('/api/studyPlan', studyPlan);
 app.use('/', index);
 
 app.listen(port, () => {

@@ -1,30 +1,54 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useAuth } from '../composables/useAuth'
+import { useRecordViewState } from '../composables/useRecordViewState'
 
 const { isLoggedIn, fetchLoginStatus } = useAuth()
-const selectedMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+const { selectedMonth, openWeek } = useRecordViewState()
 const currentYear = computed(() => selectedMonth.value.getFullYear())
 const currentMonth = computed(() => selectedMonth.value.getMonth() + 1)
+const visibleDateRange = computed(() => {
+  const year = currentYear.value
+  const month = currentMonth.value
+  const firstDay = new Date(year, month - 1, 1)
+  const lastDay = new Date(year, month, 0)
+  const firstVisibleDay = new Date(year, month - 1, 1 - firstDay.getDay())
+  const lastVisibleDay = new Date(year, month - 1, lastDay.getDate() + (6 - lastDay.getDay()))
+  return {
+    from: formatDatabaseDateTime(firstVisibleDay, false),
+    to: formatDatabaseDateTime(lastVisibleDay, true),
+  }
+})
 const today = new Date()
 const records = ref([])
 const isLoading = ref(false)
 const loadError = ref('')
+const selectedRecord = ref(null)
+const recordDetailDialog = ref(null)
+const deleteConfirmDialog = ref(null)
+const isDeletingRecord = ref(false)
+const selectedRecordError = ref('')
 
 async function loadRecords() {
   isLoading.value = true
   loadError.value = ''
   try {
-    const response = await fetch('/api/study-records', { credentials: 'include' })
+    const { from, to } = visibleDateRange.value
+    const params = new URLSearchParams({ from, to })
+    const response = await fetch(`/api/studyRecord?${params}`, { credentials: 'include' })
     if (!response.ok) {
       const error = await response.json().catch(() => ({}))
       throw new Error(error.message || '공부 기록을 불러오지 못했습니다.')
     }
     const data = await response.json()
     records.value = data.map(record => ({
+      id: record.id,
       subject: record.subject_name,
-      start: record.start_time,
-      end: record.end_time,
+      color: record.subject_color,
+      detail: record.detail,
+      restTime: record.rest_time,
+      start: parseDatabaseDateTime(record.start_time),
+      end: parseDatabaseDateTime(record.end_time),
     }))
   } catch (error) {
     loadError.value = error.message || '공부 기록을 불러오지 못했습니다.'
@@ -48,20 +72,86 @@ function changeMonth(offset) {
     1,
   )
   openWeek.value = null
+  loadRecords()
+}
+
+function formatDatabaseDateTime(date, endOfDay) {
+  // 달력 날짜의 시작/끝을 브라우저 로컬 시각으로 만든 뒤 UTC로 변환해 조회합니다.
+  const localBoundary = new Date(
+    date.getFullYear(), date.getMonth(), date.getDate(),
+    endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0,
+  )
+  return localBoundary.toISOString()
+}
+
+function parseDatabaseDateTime(value) {
+  // DB에 저장된 ISO UTC 시각을 Date로 읽고, 브라우저 시간대 기준으로 표시합니다.
+  return new Date(value)
+}
+
+function openRecord(recordId) {
+  selectedRecord.value = records.value.find(record => record.id === recordId) ?? null
+  selectedRecordError.value = ''
+  if (selectedRecord.value) recordDetailDialog.value.showModal()
+}
+
+function closeRecordDetails() {
+  recordDetailDialog.value.close()
+  selectedRecord.value = null
+  selectedRecordError.value = ''
+}
+
+function confirmDeleteRecord() {
+  selectedRecordError.value = ''
+  deleteConfirmDialog.value.showModal()
+}
+
+async function deleteSelectedRecord() {
+  if (!selectedRecord.value) return
+
+  isDeletingRecord.value = true
+  selectedRecordError.value = ''
+  try {
+    const response = await fetch(`/api/studyRecord/${selectedRecord.value.id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(data.message || '기록을 삭제하지 못했습니다.')
+    deleteConfirmDialog.value.close()
+    recordDetailDialog.value.close()
+    selectedRecord.value = null
+    await loadRecords()
+  } catch (error) {
+    selectedRecordError.value = error.message || '기록을 삭제하지 못했습니다.'
+    if (deleteConfirmDialog.value.open) deleteConfirmDialog.value.close()
+  } finally {
+    isDeletingRecord.value = false
+  }
+}
+
+function formatRecordDateTime(date) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).format(date)
+}
+
+function formatDuration(seconds = 0) {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainingSeconds = seconds % 60
+  return `${hours}시간 ${minutes}분 ${remainingSeconds}초`
 }
 
 /* =========================================================
  * 3. 과목별 색상
  *    과목 이름을 가나다순으로 정렬해 팔레트 색을 차례로 배정 (과목 10개까지 서로 다른 색)
  * ========================================================= */
-const SUBJECT_COLORS = [
-  '#ff6b35', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899',
-  '#d97706', '#0d9488', '#6366f1', '#ef4444', '#65a30d',
-]
-
 const subjects = computed(() => {
-  const names = [...new Set(records.value.map(r => r.subject))].sort((a, b) => a.localeCompare(b, 'ko'))
-  return names.map((name, i) => ({ name, color: SUBJECT_COLORS[i % SUBJECT_COLORS.length] }))
+  const colorsByName = new Map(records.value.map(record => [record.subject, record.color]))
+  const names = [...colorsByName.keys()].sort((a, b) => a.localeCompare(b, 'ko'))
+  return names.map(name => ({ name, color: colorsByName.get(name) }))
 })
 
 const subjectColor = computed(() => new Map(subjects.value.map(s => [s.name, s.color])))
@@ -74,7 +164,8 @@ const subjectColor = computed(() => new Map(subjects.value.map(s => [s.name, s.c
 const sessionsByDate = computed(() => {
   const result = {}
 
-  for (const { subject, start, end } of records.value) {
+  for (const record of records.value) {
+    const { id, subject, detail, start, end } = record
     const startAt = new Date(start)
     const endAt = new Date(end)
     if (isNaN(startAt) || isNaN(endAt) || endAt <= startAt) continue // 잘못된 기록은 건너뜀
@@ -88,10 +179,14 @@ const sessionsByDate = computed(() => {
       if (segEnd > segStart) {
         const key = dateKey(dayStart)
         ;(result[key] ??= []).push({
+          id,
           subject,
+          detail,
           color: subjectColor.value.get(subject),
-          start: Math.round((segStart - dayStart) / 60000),
-          end: Math.round((segEnd - dayStart) / 60000),
+          start: segStart.getHours() * 60 + segStart.getMinutes(),
+          end: segEnd.getTime() === nextDay.getTime()
+            ? 24 * 60
+            : segEnd.getHours() * 60 + segEnd.getMinutes(),
         })
       }
       dayStart.setDate(dayStart.getDate() + 1)
@@ -178,7 +273,6 @@ function blockStyle({ start, end, color }) {
 const FOLD_DURATION = 400 // ms (버튼 화살표 회전 시간도 이 값을 그대로 사용)
 const EDGE_GAP = 16       // 스크롤 후 화면 위/아래에 남길 여백(px)
 
-const openWeek = ref(null) // 열려 있는 주 번호 (없으면 null)
 const rowEls = []          // 주별 날짜 행 DOM
 const panelEls = []        // 주별 타임라인 패널 DOM
 let animationFrame = 0
@@ -294,7 +388,7 @@ function dayTotal(sessions) {
     <div class="record-card">
       <!-- ===== 상단: 월 이동 네비게이션 (◀ 7월 ▶) ===== -->
       <div class="month-nav">
-        <button class="nav-btn" type="button" aria-label="이전 달" @click="changeMonth(-1)">
+        <button class="nav-btn rainbow-btn" type="button" aria-label="이전 달" @click="changeMonth(-1)">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6" />
@@ -303,13 +397,21 @@ function dayTotal(sessions) {
 
           <h2 class="month-label">{{ currentYear }}년 {{ currentMonth }}월</h2>
 
-        <button class="nav-btn" type="button" aria-label="다음 달" @click="changeMonth(1)">
+        <button class="nav-btn rainbow-btn" type="button" aria-label="다음 달" @click="changeMonth(1)">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </button>
       </div>
+
+      <!-- 현재 조회 범위에 기록된 과목과 각 과목의 색상을 한 줄 범례로 보여줍니다. -->
+      <ul v-if="subjects.length" class="subject-legend" aria-label="과목 색상 범례">
+        <li v-for="subject in subjects" :key="subject.name" class="subject-chip">
+          <span class="subject-dot" :style="{ backgroundColor: subject.color }"></span>
+          <span>{{ subject.name }}</span>
+        </li>
+      </ul>
 
       <p v-if="isLoading" class="record-status" role="status">공부 기록을 불러오는 중입니다.</p>
       <p v-else-if="loadError" class="record-status error" role="alert">{{ loadError }}</p>
@@ -340,7 +442,8 @@ function dayTotal(sessions) {
             <!-- 왼쪽: 타임라인 펼치기 버튼 -->
             <div class="toggle-col">
               <button
-                class="week-toggle"
+                class="week-toggle rainbow-btn"
+                :class="{ clicked: openWeek === wi }"
                 type="button"
                 :aria-expanded="openWeek === wi"
                 :aria-label="`${wi + 1}번째 주 타임라인 ${openWeek === wi ? '접기' : '펼치기'}`"
@@ -359,6 +462,11 @@ function dayTotal(sessions) {
               :key="day.key"
               class="cal-cell"
               :class="[day.kind, { muted: !day.inMonth, today: day.isToday }]"
+              role="button"
+              tabindex="0"
+              :aria-label="`${day.date}일이 포함된 주 타임라인 ${openWeek === wi ? '접기' : '펼치기'}`"
+              @click="toggleWeek(wi)"
+              @keydown.enter.space.prevent="toggleWeek(wi)"
             >
               <span class="dom">{{ day.date }}</span>
               <span v-if="day.sessions.length" class="sum">{{ dayTotal(day.sessions) }}</span>
@@ -388,17 +496,19 @@ function dayTotal(sessions) {
                   :class="{ today: day.isToday, muted: !day.inMonth }"
                   :style="{ height: TRACK_HEIGHT + 'px' }"
                 >
-                  <!-- 과목별 공부 막대: 과목 이름 + 시간 -->
-                  <div
+                  <!-- 막대 안에는 시작 시각과 끝 시각만 표시합니다. -->
+                  <button
+                    type="button"
                     v-for="(session, i) in day.sessions"
-                    :key="i"
+                    :key="`${session.id}-${i}`"
                     class="study-block"
                     :style="blockStyle(session)"
-                    :title="`${session.subject} · ${fmtTime(session.start)} ~ ${fmtTime(session.end)}`"
+                    :title="`${fmtTime(session.start)} ~ ${fmtTime(session.end)}`"
+                    :aria-label="`${session.subject}, ${fmtTime(session.start)}부터 ${fmtTime(session.end)}까지. 기록 상세 보기`"
+                    @click="openRecord(session.id)"
                   >
-                    <span class="block-subject">{{ session.subject }}</span>
-                    <span class="block-time">{{ fmtTime(session.start) }}~{{ fmtTime(session.end) }}</span>
-                  </div>
+                    <span class="block-time">{{ fmtTime(session.start) }} ~ {{ fmtTime(session.end) }}</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -409,10 +519,46 @@ function dayTotal(sessions) {
       <!-- ===== 하단 안내 ===== -->
       <div class="legend">
         <span class="legend-text">
-          주 왼쪽의 <b>▶ 버튼</b>을 누르면 그 주의 타임라인이 열려요 · 눈금은 <b>30분 단위</b> · 막대는 실제 공부한 시간 그대로
+          Tip: 주 왼쪽의 <b>▶ 버튼</b>을 누르면 그 주의 타임라인이 열려요 · 막대를 누르면 상세 기록을 볼 수 있어요
         </span>
       </div>
     </div>
+
+    <dialog ref="recordDetailDialog" class="record-dialog" aria-labelledby="record-dialog-title">
+      <template v-if="selectedRecord">
+        <h2 id="record-dialog-title">공부 기록</h2>
+        <dl class="record-details">
+          <dt>과목</dt>
+          <dd>
+            <span class="record-subject-color" :style="{ backgroundColor: selectedRecord.color }"></span>
+            {{ selectedRecord.subject }}
+          </dd>
+          <dt>세부사항</dt>
+          <dd class="record-detail-text">{{ selectedRecord.detail || '작성된 세부사항이 없습니다.' }}</dd>
+          <dt>시작</dt>
+          <dd>{{ formatRecordDateTime(selectedRecord.start) }}</dd>
+          <dt>종료</dt>
+          <dd>{{ formatRecordDateTime(selectedRecord.end) }}</dd>
+          <dt>휴식시간</dt>
+          <dd>{{ formatDuration(selectedRecord.restTime) }}</dd>
+        </dl>
+        <p v-if="selectedRecordError" class="record-dialog-error" role="alert">{{ selectedRecordError }}</p>
+        <div class="record-dialog-actions">
+          <button type="button" class="delete-record-button" @click="confirmDeleteRecord">삭제</button>
+          <button type="button" @click="closeRecordDetails">취소</button>
+        </div>
+      </template>
+    </dialog>
+
+    <dialog ref="deleteConfirmDialog" class="record-confirm-dialog" aria-labelledby="delete-confirm-title">
+      <h2 id="delete-confirm-title">진짜 삭제하시겠습니까?</h2>
+      <div class="record-dialog-actions">
+        <button type="button" class="delete-record-button" :disabled="isDeletingRecord" @click="deleteSelectedRecord">
+          {{ isDeletingRecord ? '삭제 중...' : '수락' }}
+        </button>
+        <button type="button" :disabled="isDeletingRecord" @click="deleteConfirmDialog.close()">취소</button>
+      </div>
+    </dialog>
   </div>
 </template>
 
@@ -426,8 +572,8 @@ function dayTotal(sessions) {
   justify-content: center;
   align-items: flex-start;
   padding: 24px;
-  background-color: #f6f7f9;
-  color: #2b2f36;
+  background-color: var(--bg-color);
+  color: var(--text-color);
   font-family: 'Arial', sans-serif;
   /* 브라우저 자동 스크롤 보정이 펼침 스크롤과 겹치지 않게 끔 */
   overflow-anchor: none;
@@ -436,16 +582,16 @@ function dayTotal(sessions) {
 .record-card {
   width: 100%;
   max-width: 820px;
-  background-color: #ffffff;
-  border: 1px solid #e7e9ee;
+  background-color: var(--surface-color);
+  border: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
   border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(20, 24, 40, 0.06);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text-color) 10%, transparent);
   padding: 24px 28px 24px;
 }
 
 .record-status {
   margin: 0 0 16px;
-  color: #555b61;
+  color: color-mix(in srgb, var(--text-color) 72%, transparent);
   text-align: center;
 }
 
@@ -470,7 +616,7 @@ function dayTotal(sessions) {
   text-align: center;
   font-size: 30px;
   font-weight: 800;
-  color: #1f2430;
+  color: var(--text-color);
 }
 
 .nav-btn {
@@ -479,18 +625,49 @@ function dayTotal(sessions) {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border: 1px solid #e2e5ec;
+  border: 1px solid color-mix(in srgb, var(--text-color) 22%, transparent);
   border-radius: 50%;
-  background-color: #ffffff;
-  color: #5a6472;
+  background-color: var(--bg-color);
+  color: var(--text-color);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.nav-btn:hover {
-  background-color: #ff6b35;
-  border-color: #ff6b35;
+.nav-btn.rainbow-btn,
+.week-toggle.rainbow-btn {
+  box-sizing: border-box;
+  padding: 3px;
+  border: 0;
+  border-radius: 50%;
+  background-color: transparent;
+}
+
+.nav-btn.rainbow-btn::before,
+.week-toggle.rainbow-btn::before {
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--bg-color);
+}
+
+.nav-btn.rainbow-btn:hover::before,
+.week-toggle.rainbow-btn:hover::before,
+.week.open .week-toggle.rainbow-btn.clicked::before,
+.nav-btn.rainbow-btn:active::before,
+.week-toggle.rainbow-btn:active::before {
+  background: var(--rainbow-btn-hover-background);
+}
+
+.nav-btn.rainbow-btn:hover,
+.week-toggle.rainbow-btn:hover,
+.week.open .week-toggle.rainbow-btn {
+  border-color: transparent;
   color: #ffffff;
+}
+
+.nav-btn.rainbow-btn:active,
+.week-toggle.rainbow-btn:active {
+  transform: scale(0.94);
+  filter: drop-shadow(0 0 8px #a855f7);
 }
 
 /* =========================================================
@@ -498,24 +675,29 @@ function dayTotal(sessions) {
  * ========================================================= */
 .subject-legend {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
   gap: 8px;
   margin: 0 0 16px;
-  padding: 0;
+  padding: 4px 2px 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
   list-style: none;
+  scrollbar-width: thin;
 }
 
 .subject-chip {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border: 1px solid #e7e9ee;
+  border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  color: #4b5563;
+  color: var(--text-color);
+  white-space: nowrap;
 }
 
 .subject-dot {
@@ -529,7 +711,7 @@ function dayTotal(sessions) {
  *    버튼 열 너비 = 타임라인 시간 축 너비 → 날짜 칸과 타임라인 컬럼이 세로로 정렬됨
  * ========================================================= */
 .calendar {
-  border: 1px solid #eef0f4;
+  border: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -541,7 +723,7 @@ function dayTotal(sessions) {
 
 /* 요일 헤더 */
 .cal-head {
-  border-bottom: 1px solid #e3e6ec;
+  border-bottom: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
 }
 
 .cal-head .dow {
@@ -549,7 +731,7 @@ function dayTotal(sessions) {
   text-align: center;
   font-size: 13px;
   font-weight: 700;
-  color: #7a8290;
+  color: color-mix(in srgb, var(--text-color) 62%, transparent);
 }
 
 .cal-head .dow.sun {
@@ -561,7 +743,7 @@ function dayTotal(sessions) {
 }
 
 .week + .week {
-  border-top: 1px solid #eef0f4;
+  border-top: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
 }
 
 /* 날짜 칸 */
@@ -572,13 +754,26 @@ function dayTotal(sessions) {
   gap: 6px;
   min-height: 72px;
   padding: 8px;
-  border-left: 1px solid #f0f2f5;
+  border-left: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.cal-cell:hover {
+  background-color: color-mix(in srgb, var(--primary-color) 8%, var(--surface-color));
+}
+
+.cal-cell:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
 }
 
 .cal-cell .dom {
   font-size: 13px;
   font-weight: 700;
-  color: #4b5563;
+  color: var(--text-color);
 }
 
 .cal-cell.sun .dom {
@@ -594,7 +789,7 @@ function dayTotal(sessions) {
 }
 
 .cal-cell.today {
-  background-color: #fff4ee;
+  background-color: color-mix(in srgb, var(--primary-color) 10%, var(--surface-color));
 }
 
 .cal-cell.today .dom {
@@ -605,14 +800,14 @@ function dayTotal(sessions) {
   height: 24px;
   margin: -4px 0 0 -4px;
   border-radius: 50%;
-  background-color: #ff6b35;
+  background-color: var(--primary-color);
   color: #ffffff;
 }
 
 .cal-cell .sum {
   font-size: 11px;
   font-weight: 700;
-  color: #ff6b35;
+  color: var(--primary-color);
 }
 
 /* =========================================================
@@ -622,7 +817,7 @@ function dayTotal(sessions) {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-right: 1px solid #eef0f4;
+  border-right: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
 }
 
 .week-toggle {
@@ -631,18 +826,18 @@ function dayTotal(sessions) {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border: 1px solid #e2e5ec;
+  border: 1px solid color-mix(in srgb, var(--text-color) 22%, transparent);
   border-radius: 50%;
-  background-color: #ffffff;
-  color: #5a6472;
+  background-color: var(--bg-color);
+  color: var(--text-color);
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .week-toggle:hover,
 .week.open .week-toggle {
-  background-color: #ff6b35;
-  border-color: #ff6b35;
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
   color: #ffffff;
 }
 
@@ -674,8 +869,8 @@ function dayTotal(sessions) {
 .timeline-scroll {
   max-height: 460px;
   overflow-y: auto;
-  border-top: 1px solid #e3e6ec;
-  background-color: #fcfcfd;
+  border-top: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+  background-color: var(--surface-color);
 }
 
 .timeline {
@@ -687,7 +882,7 @@ function dayTotal(sessions) {
 /* 왼쪽 시간 축 */
 .axis {
   position: relative;
-  border-right: 1px solid #eef0f4;
+  border-right: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
 }
 
 .axis-mark {
@@ -695,31 +890,31 @@ function dayTotal(sessions) {
   right: 6px;
   transform: translateY(-50%);
   font-size: 10px;
-  color: #aeb4bf;
+  color: color-mix(in srgb, var(--text-color) 48%, transparent);
   white-space: nowrap;
 }
 
 .axis-mark.hour {
-  color: #6b7280;
+  color: color-mix(in srgb, var(--text-color) 74%, transparent);
   font-weight: 700;
 }
 
 /* 요일별 컬럼 */
 .day-col {
   position: relative;
-  border-left: 1px solid #f0f2f5;
+  border-left: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
   /* 30분(연한 선) / 1시간(진한 선) 눈금 */
   background-image:
-    repeating-linear-gradient(to bottom, #e3e6ec 0, #e3e6ec 1px, transparent 1px, transparent 48px),
-    repeating-linear-gradient(to bottom, #f2f4f7 0, #f2f4f7 1px, transparent 1px, transparent 24px);
+    repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text-color) 18%, transparent) 0, color-mix(in srgb, var(--text-color) 18%, transparent) 1px, transparent 1px, transparent 48px),
+    repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text-color) 9%, transparent) 0, color-mix(in srgb, var(--text-color) 9%, transparent) 1px, transparent 1px, transparent 24px);
 }
 
 .day-col.today {
-  background-color: #fffaf7;
+  background-color: color-mix(in srgb, var(--primary-color) 5%, var(--surface-color));
 }
 
 .day-col.muted {
-  background-color: #f8f9fb;
+  background-color: color-mix(in srgb, var(--text-color) 5%, var(--surface-color));
 }
 
 /* 과목별 공부 막대 (배경색은 과목 색으로 인라인 지정) */
@@ -727,26 +922,31 @@ function dayTotal(sessions) {
   position: absolute;
   left: 3px;
   right: 3px;
+  border: 0;
   display: flex;
   flex-direction: column;
   padding: 2px 4px;
   border-radius: 4px;
-  box-shadow: 0 1px 2px rgba(20, 24, 40, 0.2);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-color) 30%, transparent);
   overflow: hidden;
   color: #ffffff;
+  font-family: inherit;
+  text-align: left;
   line-height: 1.2;
   white-space: nowrap;
+  cursor: pointer;
+  appearance: none;
 }
 
-/* 막대가 짧으면 과목 이름만 보이고 시간은 잘림 (전체는 마우스 올리면 툴팁으로) */
-.block-subject {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 10px;
-  font-weight: 800;
+.study-block:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
 }
 
 .block-time {
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 9px;
   font-weight: 700;
   opacity: 0.9;
@@ -762,6 +962,197 @@ function dayTotal(sessions) {
 
 .legend-text {
   font-size: 12px;
-  color: #7a8290;
+  color: color-mix(in srgb, var(--text-color) 62%, transparent);
+}
+
+.record-dialog,
+.record-confirm-dialog {
+  width: min(440px, calc(100vw - 32px));
+  box-sizing: border-box;
+  margin: auto;
+  padding: 24px;
+  border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+  border-radius: 16px;
+  background: var(--surface-color);
+  color: var(--text-color);
+  box-shadow: 0 20px 60px color-mix(in srgb, var(--text-color) 24%, transparent);
+}
+
+.record-dialog::backdrop,
+.record-confirm-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.record-dialog h2,
+.record-confirm-dialog h2 {
+  margin: 0 0 20px;
+  font-size: 20px;
+}
+
+.record-details {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 12px 8px;
+  margin: 0;
+}
+
+.record-details dt {
+  color: color-mix(in srgb, var(--text-color) 68%, transparent);
+  font-weight: 700;
+}
+
+.record-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.record-details dd:first-of-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.record-subject-color {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.record-detail-text {
+  white-space: pre-wrap;
+}
+
+.record-dialog-error {
+  margin: 16px 0 0;
+  color: #c62828;
+  font-weight: 700;
+}
+
+.record-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.record-dialog-actions button {
+  min-width: 88px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--text-color) 24%, transparent);
+  border-radius: 8px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.record-dialog-actions .delete-record-button {
+  border-color: #c62828;
+  background: #c62828;
+  color: #ffffff;
+}
+
+.record-dialog-actions button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .record {
+    padding: 0;
+  }
+
+  .record-card {
+    padding: 18px 12px;
+    border-radius: 12px;
+  }
+
+  .month-nav {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .month-label {
+    min-width: 78px;
+    font-size: 22px;
+  }
+
+  .nav-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .calendar {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .cal-row,
+  .week {
+    min-width: 560px;
+  }
+
+  .cal-cell {
+    min-height: 62px;
+    gap: 4px;
+    padding: 5px 2px;
+  }
+
+  .cal-cell .dom {
+    font-size: 12px;
+  }
+
+  .cal-cell .sum {
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .timeline-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .timeline {
+    min-width: 560px;
+  }
+
+  .record-dialog,
+  .record-confirm-dialog {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    padding: 18px;
+  }
+
+  .record-details {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px 6px;
+  }
+
+  .record-dialog-actions {
+    gap: 8px;
+  }
+
+  .record-dialog-actions button {
+    min-width: 0;
+    flex: 1;
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .cal-cell {
+    min-height: 56px;
+    padding-right: 1px;
+    padding-left: 1px;
+  }
+
+  .cal-cell .sum {
+    font-size: 8px;
+  }
 }
 </style>

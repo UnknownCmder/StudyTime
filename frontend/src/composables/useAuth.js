@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { resetRecordViewState } from './useRecordViewState'
 
 const isLoggedIn = ref(false)
 const isLoginLoading = ref(false)
@@ -42,6 +43,7 @@ async function login(id, password) {
         const data = await response.json()
         isLoggedIn.value = data.isLoggedIn
         currentUserId.value = data.userId || null
+        resetRecordViewState()
         return isLoggedIn.value
     } finally {
         isLoginLoading.value = false
@@ -65,6 +67,7 @@ async function logout() {
         const data = await response.json()
         isLoggedIn.value = data.isLoggedIn
         currentUserId.value = null
+        resetRecordViewState()
         return !isLoggedIn.value
     } finally {
         isLoginLoading.value = false

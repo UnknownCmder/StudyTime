@@ -49,10 +49,12 @@ db.run(`CREATE TABLE IF NOT EXISTS user_subjects (
 db.run(`CREATE TABLE IF NOT EXISTS study_record (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_num_id INTEGER NOT NULL,
-    subject_id INTEGER NOT NULL,
+    subject_id INTEGER,
     detail VARCHAR(255),
-    start_data_time INTEGER NOT NULL,
-    end_data_time INTEGER default 0,
+    start_time DATETIME NOT NULL DEFAULT 0,
+    end_time DATETIME DEFAULT 0,
+    rest_time INTEGER NOT NULL DEFAULT 0,
+    pause_start_time DATETIME DEFAULT 0,
     
     FOREIGN KEY (user_num_id)
         REFERENCES users(id)
@@ -68,7 +70,7 @@ db.run(`CREATE TABLE IF NOT EXISTS study_record (
     } else {
         console.log('Study_record table created or already exists.');
         db.run(`CREATE INDEX IF NOT EXISTS idx_study_record_user_time
-            ON study_record (user_num_id, start_data_time, end_data_time)`);
+            ON study_record (user_num_id, start_time, end_time)`);
     }
 });
 
@@ -102,8 +104,8 @@ db.run(`CREATE TABLE IF NOT EXISTS weekly_study_plan (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_num_id INTEGER NOT NULL,
     subject_id INTEGER NOT NULL,
-    start_time INTEGER NOT NULL,
-    end_time INTEGER NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
 
     FOREIGN KEY (user_num_id)
         REFERENCES users(id)

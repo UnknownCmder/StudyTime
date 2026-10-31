@@ -57,10 +57,13 @@ async function handleSignup() {
     align-items: center;
     justify-content: center;
     min-height: calc(100vh - 120px);
+    padding: 16px;
+    box-sizing: border-box;
 }
 
 .auth-form {
     width: min(100%, 420px);
+    box-sizing: border-box;
     padding: 28px;
     border: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
     border-radius: 8px;
@@ -88,6 +91,7 @@ async function handleSignup() {
 
 .input-group input {
     width: 100%;
+    box-sizing: border-box;
     padding: 12px;
     border: 1px solid color-mix(in srgb, var(--text-color) 24%, transparent);
     border-radius: 6px;
@@ -103,6 +107,7 @@ async function handleSignup() {
 
 #btnSignup {
     width: 100%;
+    box-sizing: border-box;
     margin-top: 8px;
     padding: 12px;
     color: var(--text-color);
@@ -121,6 +126,23 @@ async function handleSignup() {
     margin-bottom: 12px;
     color: #c62828;
     font-weight: 700;
+}
+
+@media (max-width: 480px) {
+    .auth-page {
+        min-height: calc(100dvh - 84px);
+        padding: 12px 4px;
+    }
+
+    .auth-form {
+        padding: 22px 18px;
+        border-radius: 12px;
+    }
+
+    .auth-form h2 {
+        margin-bottom: 20px;
+        font-size: 24px;
+    }
 }
 
 </style>
