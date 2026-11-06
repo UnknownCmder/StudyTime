@@ -257,9 +257,9 @@ function buildWeeks(year, month) {
 /* =========================================================
  * 6. 타임라인 (크기 · 시간 눈금 · 공부 막대 위치)
  * ========================================================= */
-const ROW_H = 24                          // 30분 = 24px
+const ROW_H = 60                          // 30분 = 60px (기존 24px의 2.5배)
 const SLOT_COUNT = 48                     // 24시간 / 30분 = 48칸
-const TRACK_HEIGHT = ROW_H * SLOT_COUNT   // 전체 세로 길이(1152px) → 넘치면 스크롤
+const TRACK_HEIGHT = ROW_H * SLOT_COUNT   // 하루 전체 높이. 보이는 패널은 스크롤 영역으로 제한
 
 // 왼쪽 시간 축 눈금 (00:00 ~ 24:00, 30분 단위)
 const axisMarks = []
@@ -492,7 +492,10 @@ function dayTotal(sessions) {
           <!-- 펼쳐지는 주간 타임라인 -->
           <div :ref="el => (panelEls[wi] = el)" class="week-panel">
             <div class="timeline-scroll">
-              <div class="timeline">
+              <div
+                class="timeline"
+                :style="{ '--row-height': ROW_H + 'px', '--hour-height': ROW_H * 2 + 'px' }"
+              >
                 <!-- 왼쪽 시간 축 (30분 단위) -->
                 <div class="axis" :style="{ height: TRACK_HEIGHT + 'px' }">
                   <span
@@ -921,8 +924,8 @@ function dayTotal(sessions) {
   border-left: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
   /* 30분(연한 선) / 1시간(진한 선) 눈금 */
   background-image:
-    repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text-color) 18%, transparent) 0, color-mix(in srgb, var(--text-color) 18%, transparent) 1px, transparent 1px, transparent 48px),
-    repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text-color) 9%, transparent) 0, color-mix(in srgb, var(--text-color) 9%, transparent) 1px, transparent 1px, transparent 24px);
+    repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text-color) 18%, transparent) 0, color-mix(in srgb, var(--text-color) 18%, transparent) 1px, transparent 1px, transparent var(--hour-height)),
+    repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text-color) 9%, transparent) 0, color-mix(in srgb, var(--text-color) 9%, transparent) 1px, transparent 1px, transparent var(--row-height));
 }
 
 .day-col.today {
@@ -1083,7 +1086,7 @@ function dayTotal(sessions) {
   }
 
   .record-card {
-    padding: 18px 12px;
+    padding: 16px 10px;
     border-radius: 12px;
   }
 
@@ -1093,13 +1096,13 @@ function dayTotal(sessions) {
   }
 
   .month-label {
-    min-width: 78px;
+    min-width: 74px;
     font-size: 22px;
   }
 
   .nav-btn {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
   }
 
   .calendar {
@@ -1109,11 +1112,11 @@ function dayTotal(sessions) {
 
   .cal-row,
   .week {
-    min-width: 560px;
+    min-width: 520px;
   }
 
   .cal-cell {
-    min-height: 62px;
+    min-height: 58px;
     gap: 4px;
     padding: 5px 2px;
   }
@@ -1133,7 +1136,7 @@ function dayTotal(sessions) {
   }
 
   .timeline {
-    min-width: 560px;
+    min-width: 520px;
   }
 
   .record-dialog,
@@ -1162,7 +1165,7 @@ function dayTotal(sessions) {
 
 @media (max-width: 360px) {
   .cal-cell {
-    min-height: 56px;
+    min-height: 52px;
     padding-right: 1px;
     padding-left: 1px;
   }

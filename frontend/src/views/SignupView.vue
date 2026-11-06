@@ -130,17 +130,17 @@ async function handleSignup() {
 
 @media (max-width: 480px) {
     .auth-page {
-        min-height: calc(100dvh - 84px);
-        padding: 12px 4px;
+        min-height: calc(100dvh - 88px);
+        padding: 10px 3px;
     }
 
     .auth-form {
-        padding: 22px 18px;
+        padding: 20px 16px;
         border-radius: 12px;
     }
 
     .auth-form h2 {
-        margin-bottom: 20px;
+        margin-bottom: 18px;
         font-size: 24px;
     }
 }

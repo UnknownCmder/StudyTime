@@ -24,8 +24,6 @@ const newSubjectColor = ref('#6366f1')
 // 종료 시 팝업에서 입력하는 기록 설명과 서버에 저장 중인 활성 기록 ID입니다.
 const recordDetail = ref('')
 const activeRecordId = ref(null)
-// 팝업에서 저장할 종료 시각을 YYYYMMDDHHmmss 숫자로 보관합니다.
-const stoppedEndDataTime = ref(0)
 // 현재 DB 기록이 일시정지 상태인지, 요청 중/오류인지 나타냅니다.
 const isRecordPaused = ref(false)
 const timerError = ref('')
@@ -55,7 +53,7 @@ function pad(value) {
   return String(value).padStart(2, '0')
 }
 
-// 스톱워치를 시작하거나 재개합니다. 일시정지 기록이 있다면 먼저 서버에 재개 시각을 저장합니다.
+// 스톱워치를 시작하거나 재개합니다. 재개 시각은 서버가 생성해 휴식 시간을 계산합니다.
 async function startStopwatch() {
   if (stopwatchRunning.value) {
     return
@@ -66,9 +64,7 @@ async function startStopwatch() {
     try {
       const response = await fetch(`/api/studyRecord/${activeRecordId.value}/resume`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ resume_time: formatDatabaseDateTime(new Date()) }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.message || '스톱워치를 재개하지 못했습니다.')
@@ -91,7 +87,7 @@ function updateElapsedTime() {
   stopwatchElapsed.value = performance.now() - stopwatchStartedAt
 }
 
-// 실행 중인 기록을 일시정지합니다. 실제 일시정지 시각을 서버에 저장한 뒤 화면 갱신을 멈춥니다.
+// 실행 중인 기록을 일시정지합니다. 버튼 입력만 서버에 알리고 서버가 정지 시각을 생성합니다.
 async function pauseStopwatch() {
   if (!stopwatchRunning.value) {
     return
@@ -102,9 +98,7 @@ async function pauseStopwatch() {
   try {
     const response = await fetch(`/api/studyRecord/${activeRecordId.value}/pause`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ pause_start_time: formatDatabaseDateTime(new Date()) }),
     })
     const data = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(data.message || '일시정지 시각을 저장하지 못했습니다.')
@@ -129,7 +123,7 @@ async function loadSubjects() {
 }
 
 async function beginStopwatch() {
-  // 시작 시각만 가진 활성 기록을 서버에 만든 다음 로컬 타이머를 시작합니다.
+  // 서버가 시작 시각을 생성해 활성 기록을 만든 뒤 로컬 표시 타이머를 시작합니다.
   timerError.value = ''
   dialogError.value = ''
   recordDetail.value = ''
@@ -137,9 +131,7 @@ async function beginStopwatch() {
   try {
     const response = await fetch('/api/studyRecord/active', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ start_time: formatDatabaseDateTime(new Date()) }),
     })
     const data = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(data.message || '공부 시작 시각을 저장하지 못했습니다.')
@@ -177,6 +169,8 @@ async function restoreActiveStopwatch() {
   if (!startDate) return
 
   activeRecordId.value = data.id
+  const stoppedAt = data.end_time ? parseDatabaseDateTime(data.end_time) : null
+  const isWaitingForDetails = stoppedAt !== null && data.subject_id === null
   const pauseStartDate = !data.pause_start_time
     ? null
     : parseDatabaseDateTime(data.pause_start_time)
@@ -189,11 +183,20 @@ async function restoreActiveStopwatch() {
   const currentRest = pauseStartDate
     ? Math.max(0, Date.now() - pauseStartDate.getTime())
     : 0
-  const elapsed = Date.now() - startDate.getTime() - accumulatedRest - currentRest
+  // 종료 시각이 이미 서버에 고정된 기록은 현재 시각 대신 중지 시각으로 화면을 복구합니다.
+  const elapsedEnd = stoppedAt || new Date()
+  const elapsed = elapsedEnd.getTime() - startDate.getTime() - accumulatedRest - currentRest
   stopwatchElapsed.value = Number.isFinite(elapsed) ? Math.max(0, elapsed) : 0
   stopwatchStartedAt = performance.now() - stopwatchElapsed.value
   stopwatchStarted.value = true
-  stopwatchRunning.value = !isRecordPaused.value
+  stopwatchRunning.value = !isRecordPaused.value && !isWaitingForDetails
+  if (isWaitingForDetails) {
+    // 중지 후 페이지를 다시 열어도 기록 완료 팝업에서 과목과 설명을 저장할 수 있게 복원합니다.
+    stoppedElapsed.value = stopwatchElapsed.value
+    await loadSubjects()
+    stopDialog.value.showModal()
+    return
+  }
   if (stopwatchRunning.value) {
     stopwatchInterval = window.setInterval(updateElapsedTime, 200)
   }
@@ -209,38 +212,38 @@ onMounted(async () => {
   }
 })
 
-// 중지 시각과 경과 시간을 확정하고 과목/상세 내용을 입력할 기록 팝업을 엽니다.
+// 서버가 종료 시각을 고정한 뒤 과목/상세 내용을 입력할 팝업을 엽니다.
 async function stopStopwatch() {
   if (!stopwatchStarted.value) return
-  const stopTime = formatDatabaseDateTime(new Date())
   isSavingRecord.value = true
 
+  const wasRunning = stopwatchRunning.value
   if (stopwatchRunning.value) {
     updateElapsedTime()
     window.clearInterval(stopwatchInterval)
     stopwatchInterval = null
     stopwatchRunning.value = false
-    try {
-      const response = await fetch(`/api/studyRecord/${activeRecordId.value}/pause`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ pause_start_time: stopTime }),
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.message || '종료 시각을 준비하지 못했습니다.')
-      isRecordPaused.value = true
-    } catch (error) {
-      timerError.value = error.message || '종료 시각을 준비하지 못했습니다.'
+  }
+  try {
+    // 서버가 이 요청을 처리할 때 종료 시각을 저장하므로 팝업 입력 시간은 공부/휴식에 포함되지 않습니다.
+    const response = await fetch(`/api/studyRecord/${activeRecordId.value}/stop`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(data.message || '타이머를 중지하지 못했습니다.')
+    isRecordPaused.value = false
+  } catch (error) {
+    timerError.value = error.message || '타이머를 중지하지 못했습니다.'
+    if (wasRunning) {
       stopwatchStartedAt = performance.now() - stopwatchElapsed.value
       stopwatchRunning.value = true
       stopwatchInterval = window.setInterval(updateElapsedTime, 200)
-      isSavingRecord.value = false
-      return
     }
+    isSavingRecord.value = false
+    return
   }
   stoppedElapsed.value = stopwatchElapsed.value
-  stoppedEndDataTime.value = stopTime
   dialogError.value = ''
   try {
     await loadSubjects()
@@ -280,13 +283,8 @@ async function createSubject() {
   }
 }
 
-function formatDatabaseDateTime(date) {
-  // Date를 UTC 기준 ISO 문자열로 직렬화해 DB에 저장합니다.
-  return date.toISOString()
-}
-
 async function saveStopwatch() {
-  // 선택 과목, 기록 내용, 종료 시각을 기존 활성 기록에 반영해 완료 처리합니다.
+  // 선택 과목과 기록 내용만 보내고, 종료 시각은 서버가 생성하도록 합니다.
   dialogError.value = ''
   if (!selectedSubjectId.value) {
     dialogError.value = '과목을 선택하거나 새 과목을 추가해주세요.'
@@ -301,7 +299,6 @@ async function saveStopwatch() {
       body: JSON.stringify({
         subject_id: Number(selectedSubjectId.value),
         detail: recordDetail.value.trim() || null,
-        end_time: stoppedEndDataTime.value,
       }),
     })
     const data = await response.json().catch(() => ({}))
@@ -603,8 +600,8 @@ h1 {
   }
 
   .stopwatch-shell {
-    min-height: calc(100vh - 112px);
-    padding: 24px 16px;
+    min-height: calc(100dvh - 120px);
+    padding: 22px 14px;
     border-radius: 24px;
   }
 
@@ -613,9 +610,9 @@ h1 {
   }
 
   .time {
-    padding: 38px 10px;
+    padding: 34px 8px;
     border-radius: 18px;
-    font-size: clamp(42px, 14vw, 68px);
+    font-size: clamp(40px, 14vw, 68px);
     letter-spacing: 0;
   }
 
@@ -625,9 +622,13 @@ h1 {
   }
 
   .control-button {
-    min-height: 52px;
+    min-height: 48px;
     padding: 10px 6px;
     font-size: 15px;
+  }
+
+  .stop-dialog-actions button {
+    min-height: 52px;
   }
 }
 .stop-dialog {
@@ -803,7 +804,7 @@ h1 {
 @media (max-width: 520px) {
     /* 작은 화면에서는 팝업 여백을 줄이고 신규 과목 입력을 두 줄로 재배치합니다. */
     .stop-dialog {
-        padding: 28px 20px;
+        padding: 24px 18px;
         border-radius: 28px;
     }
 
@@ -822,7 +823,7 @@ h1 {
   }
 
   .stopwatch-shell {
-    padding: 20px 10px;
+    padding: 18px 8px;
   }
 
   .actions {

@@ -7,6 +7,7 @@ const {
     createActiveStudyRecord,
     getActiveStudyRecord,
     setStudyRecordPaused,
+    stopActiveStudyRecord,
     addStudyRecordRestTime,
     finishActiveStudyRecord,
     deleteStudyRecord,
@@ -66,13 +67,8 @@ router.post('/active', async (req, res, next) => {
     const session = requireSession(req, res);
     if (!session) return;
 
-    const { start_time } = req.body;
-    if (!isUtcDateTime(start_time)) {
-        res.status(400).send({ message: '올바른 시작 시각을 입력해주세요.' });
-        return;
-    }
     try {
-        res.status(201).send(await createActiveStudyRecord(session.userId, start_time));
+        res.status(201).send(await createActiveStudyRecord(session.userId));
     } catch (error) {
         next(error);
     }
@@ -92,13 +88,12 @@ router.post('/:recordId/pause', async (req, res, next) => {
     const session = requireSession(req, res);
     if (!session) return;
     const recordId = Number(req.params.recordId);
-    const { pause_start_time } = req.body;
-    if (!Number.isInteger(recordId) || recordId < 1 || !isUtcDateTime(pause_start_time)) {
-        res.status(400).send({ message: '올바른 기록과 일시정지 시각을 입력해주세요.' });
+    if (!Number.isInteger(recordId) || recordId < 1) {
+        res.status(400).send({ message: '올바른 기록을 선택해주세요.' });
         return;
     }
     try {
-        const paused = await setStudyRecordPaused(session.userId, recordId, pause_start_time);
+        const paused = await setStudyRecordPaused(session.userId, recordId);
         if (!paused) {
             res.status(409).send({ message: '기록을 일시정지할 수 없습니다.' });
             return;
@@ -109,17 +104,37 @@ router.post('/:recordId/pause', async (req, res, next) => {
     }
 });
 
+// 저장 팝업을 여는 중지 동작은 종료 시각을 즉시 고정해 이후 대기 시간을 휴식에 포함하지 않습니다.
+router.post('/:recordId/stop', async (req, res, next) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const recordId = Number(req.params.recordId);
+    if (!Number.isInteger(recordId) || recordId < 1) {
+        res.status(400).send({ message: '올바른 기록을 선택해주세요.' });
+        return;
+    }
+    try {
+        const stopped = await stopActiveStudyRecord(session.userId, recordId);
+        if (!stopped) {
+            res.status(409).send({ message: '기록을 중지할 수 없습니다.' });
+            return;
+        }
+        res.send({ stopped: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
 router.post('/:recordId/resume', async (req, res, next) => {
     const session = requireSession(req, res);
     if (!session) return;
     const recordId = Number(req.params.recordId);
-    const { resume_time } = req.body;
-    if (!Number.isInteger(recordId) || recordId < 1 || !isUtcDateTime(resume_time)) {
-        res.status(400).send({ message: '올바른 기록과 재개 시각을 입력해주세요.' });
+    if (!Number.isInteger(recordId) || recordId < 1) {
+        res.status(400).send({ message: '올바른 기록을 선택해주세요.' });
         return;
     }
     try {
-        const resumed = await addStudyRecordRestTime(session.userId, recordId, resume_time);
+        const resumed = await addStudyRecordRestTime(session.userId, recordId);
         if (!resumed) {
             res.status(409).send({ message: '기록을 재개할 수 없습니다.' });
             return;
@@ -134,17 +149,16 @@ router.post('/:recordId/finish', async (req, res, next) => {
     const session = requireSession(req, res);
     if (!session) return;
     const recordId = Number(req.params.recordId);
-    const { subject_id, detail = null, end_time } = req.body;
+    const { subject_id, detail = null } = req.body;
     if (!Number.isInteger(recordId) || recordId < 1
         || !Number.isInteger(subject_id) || subject_id < 1
-        || (detail !== null && (typeof detail !== 'string' || detail.length > 255))
-        || !isUtcDateTime(end_time)) {
-        res.status(400).send({ message: '과목, 기록 내용과 올바른 종료 시각을 입력해주세요.' });
+        || (detail !== null && (typeof detail !== 'string' || detail.length > 255))) {
+        res.status(400).send({ message: '과목과 기록 내용을 확인해주세요.' });
         return;
     }
     try {
         const finished = await finishActiveStudyRecord(
-            session.userId, recordId, subject_id, detail, end_time,
+            session.userId, recordId, subject_id, detail,
         );
         if (!finished) {
             res.status(409).send({ message: '기록을 종료할 수 없습니다.' });

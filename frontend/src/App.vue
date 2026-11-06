@@ -232,11 +232,11 @@ onMounted(fetchLoginStatus)
     .app {
         height: 100dvh;
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: 60px minmax(0, 1fr);
+        grid-template-rows: 56px minmax(0, 1fr);
     }
 
     .header {
-        padding: 0 12px;
+        padding: 0 10px;
     }
 
     .header-content {
@@ -255,10 +255,10 @@ onMounted(fetchLoginStatus)
     /* 모바일에서는 기본적으로 사이드바를 숨깁니다 */
     .sidebar {
         position: fixed;
-        top: 60px;
+        top: 56px;
         bottom: 0;
         left: 0;
-        width: min(250px, 82vw);
+        width: min(230px, 78vw);
         height: auto;
         margin-left: 0;
         z-index: 999;
@@ -284,7 +284,11 @@ onMounted(fetchLoginStatus)
         grid-column: 1;
         grid-row: 2;
         min-width: 0;
-        padding: 12px;
+        padding: 10px;
+    }
+
+    .menu-list li a {
+        padding: 12px 16px;
     }
 }
 
