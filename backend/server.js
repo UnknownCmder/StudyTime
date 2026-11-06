@@ -23,11 +23,13 @@ app.use('/', express.static(path.join(__dirname, 'public')))
 const index = require('./routes/index');
 const signin = require('./routes/signin');
 const signup = require('./routes/signup');
+const emailVerification = require('./routes/emailVerification');
 const studyRecord = require('./routes/studyRecord');
 const studyPlan = require('./routes/studyPlan');
 
 app.use('/api/signin', signin); // 로그인, 로그아웃 및 로그인 상태 API
 app.use('/api/signup', signup);
+app.use('/api/email-verification', emailVerification);
 app.use('/api/studyRecord', studyRecord);
 app.use('/api/studyPlan', studyPlan);
 app.use('/', index);

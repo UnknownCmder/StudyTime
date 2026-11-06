@@ -1,12 +1,18 @@
 const express = require('express');
 const router = express.Router();
 // 계정 INSERT는 결과 메타데이터를 쓰지 않으므로 공통 execute 헬퍼를 이용합니다.
-const { execute } = require('../database/connectDB');
+const { execute, query } = require('../database/connectDB');
 const { hashPassword } = require('../utils/password');
 
 router.post('/', async function (req, res, next) {
     // 회원가입 화면에서 입력한 아이디와 비밀번호를 받습니다.
     const { id, password } = req.body;
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+
+    if (!email || req.session.verifiedEmail !== email) {
+        res.status(400).send({ message: '회원가입 전에 이메일 인증을 완료해주세요.' });
+        return;
+    }
 
     if (!id || !password) {
         res.status(400).send({ message: '아이디와 비밀번호를 입력해주세요.' });
@@ -29,6 +35,15 @@ router.post('/', async function (req, res, next) {
     }
 
     try {
+        const existingAccounts = await query(
+            'SELECT id FROM users WHERE user_text_id = ? OR email = ? LIMIT 1',
+            [id, email],
+        );
+        if (existingAccounts.length) {
+            res.status(409).send({ message: '아이디 또는 이메일이 이미 사용 중입니다.' });
+            return;
+        }
+
         // DB에 저장하기 전에 비밀번호를 평문이 아닌 해시 값으로 변환합니다.
         const hashedPassword = await hashPassword(password);
 
@@ -36,14 +51,15 @@ router.post('/', async function (req, res, next) {
         // 중복 아이디의 MySQL 고유 키 오류는 아래에서 ER_DUP_ENTRY로 구분합니다.
         // 원문 비밀번호가 아닌 해시를 users.hashed_pw 컬럼에 저장합니다.
         await execute(
-            'INSERT INTO users (user_text_id, hashed_pw) VALUES (?, ?)',
-            [id, hashedPassword],
+            'INSERT INTO users (user_text_id, hashed_pw, email) VALUES (?, ?, ?)',
+            [id, hashedPassword, email],
         );
+        delete req.session.verifiedEmail;
         res.status(201).send({ message: '회원가입이 완료되었습니다.' });
     } catch (error) {
         // SQLite 오류 코드 대신 MySQL 드라이버의 고유 키 위반 코드를 확인합니다.
         if (error.code === 'ER_DUP_ENTRY') {
-            res.status(409).send({ message: '이미 사용 중인 아이디입니다.' });
+            res.status(409).send({ message: '아이디 또는 이메일이 이미 사용 중입니다.' });
             return;
         }
         next(error);

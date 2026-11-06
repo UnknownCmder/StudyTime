@@ -131,9 +131,28 @@ CREATE TABLE `users` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_text_id` varchar(20) NOT NULL,
   `hashed_pw` varchar(300) NOT NULL,
+  `email` varchar(320) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `user_text_id` (`user_text_id`)
+  UNIQUE KEY `user_text_id` (`user_text_id`),
+  UNIQUE KEY `uq_users_email` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `email_verification`
+--
+
+DROP TABLE IF EXISTS `email_verification`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_verification` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `email` varchar(320) NOT NULL,
+  `hashed_code` varchar(300) NOT NULL,
+  `expired_at` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_email_verification_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

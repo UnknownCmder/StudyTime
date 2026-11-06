@@ -4,17 +4,60 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
-const { signup } = useAuth()
+const { signup, requestEmailVerification, verifyEmail } = useAuth()
 const id = ref('')
 const password = ref('')
+const email = ref('')
+const code = ref('')
+const codeSent = ref(false)
+const emailVerified = ref(false)
 const isSubmitting = ref(false)
+const isSendingCode = ref(false)
+const isVerifyingCode = ref(false)
 const errorMessage = ref('')
+const successMessage = ref('')
+
+async function handleSendCode() {
+    errorMessage.value = ''
+    successMessage.value = ''
+    isSendingCode.value = true
+    try {
+        await requestEmailVerification(email.value)
+        codeSent.value = true
+        emailVerified.value = false
+        successMessage.value = '인증 코드를 보냈습니다. 10분 안에 입력해주세요.'
+    } catch (error) {
+        errorMessage.value = error.message
+    } finally {
+        isSendingCode.value = false
+    }
+}
+
+async function handleVerifyCode() {
+    errorMessage.value = ''
+    successMessage.value = ''
+    isVerifyingCode.value = true
+    try {
+        await verifyEmail(email.value, code.value)
+        emailVerified.value = true
+        successMessage.value = '이메일 인증이 완료되었습니다.'
+    } catch (error) {
+        errorMessage.value = error.message
+    } finally {
+        isVerifyingCode.value = false
+    }
+}
 
 async function handleSignup() {
     errorMessage.value = ''
+    if (!emailVerified.value) {
+        errorMessage.value = '먼저 이메일 인증을 완료해주세요.'
+        return
+    }
+    isSubmitting.value = true
     try {
-        // 아이디가 중복되지 않으면 서버가 비밀번호를 해싱해서 DB에 저장합니다.
-        await signup(id.value, password.value)
+        // 인증된 이메일과 함께 가입 정보를 서버로 보냅니다.
+        await signup(id.value, password.value, email.value)
         router.push('/signin')
     } catch (error) {
         console.error('회원가입 실패:', error)
@@ -31,6 +74,22 @@ async function handleSignup() {
             <h2>회원가입</h2>
 
             <label class="input-group">
+                <span>이메일</span>
+                <input v-model.trim="email" type="email" autocomplete="email" required :disabled="emailVerified" />
+                <button type="button" class="secondary-btn" :disabled="isSendingCode || !email || emailVerified" @click="handleSendCode">
+                    {{ isSendingCode ? '발송 중...' : codeSent ? '인증 코드 다시 받기' : '인증 코드 받기' }}
+                </button>
+            </label>
+
+            <label v-if="codeSent && !emailVerified" class="input-group">
+                <span>인증 코드</span>
+                <input v-model.trim="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required />
+                <button type="button" class="secondary-btn" :disabled="isVerifyingCode || code.length !== 6" @click="handleVerifyCode">
+                    {{ isVerifyingCode ? '확인 중...' : '이메일 인증' }}
+                </button>
+            </label>
+
+            <label class="input-group">
                 <span>아이디</span>
                 <input v-model.trim="id" type="text" autocomplete="username" required />
             </label>
@@ -41,6 +100,7 @@ async function handleSignup() {
             </label>
 
             <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+            <p v-if="successMessage" class="success-message">{{ successMessage }}</p>
 
             <button id="btnSignup" type="submit" class="rainbow-btn" :disabled="isSubmitting">
                 {{ isSubmitting ? '가입 중...' : '회원가입' }}
@@ -105,6 +165,22 @@ async function handleSignup() {
     outline-offset: 1px;
 }
 
+.secondary-btn {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border: 1px solid color-mix(in srgb, var(--text-color) 24%, transparent);
+    border-radius: 6px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font: inherit;
+    cursor: pointer;
+}
+
+.secondary-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 #btnSignup {
     width: 100%;
     box-sizing: border-box;
@@ -125,6 +201,12 @@ async function handleSignup() {
 .error-message {
     margin-bottom: 12px;
     color: #c62828;
+    font-weight: 700;
+}
+
+.success-message {
+    margin-bottom: 12px;
+    color: #218838;
     font-weight: 700;
 }
 

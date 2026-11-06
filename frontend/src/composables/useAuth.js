@@ -74,7 +74,27 @@ async function logout() {
     }
 }
 
-async function signup(id, password) {
+async function requestEmailVerification(email) {
+    const response = await fetch('/api/email-verification/send', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ email }),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(data.message || '인증 코드 발송 실패')
+    return data
+}
+
+async function verifyEmail(email, code) {
+    const response = await fetch('/api/email-verification/verify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ email, code }),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(data.message || '이메일 인증 실패')
+    return data
+}
+
+async function signup(id, password, email) {
     // 회원가입 API는 성공 시 DB에 해시된 비밀번호를 저장합니다.
     const response = await fetch('/api/signup', {
         method: 'POST',
@@ -82,7 +102,7 @@ async function signup(id, password) {
             'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ id, password }),
+        body: JSON.stringify({ id, password, email }),
     })
 
     if (!response.ok) {
@@ -102,5 +122,7 @@ export function useAuth() {
         login,
         logout,
         signup,
+        requestEmailVerification,
+        verifyEmail,
     }
 }
