@@ -23,6 +23,7 @@ const today = new Date()
 const records = ref([])
 const isLoading = ref(false)
 const loadError = ref('')
+let latestRecordsRequest = 0
 const selectedRecord = ref(null)
 const recordDetailDialog = ref(null)
 const deleteConfirmDialog = ref(null)
@@ -30,6 +31,7 @@ const isDeletingRecord = ref(false)
 const selectedRecordError = ref('')
 
 async function loadRecords() {
+  const requestId = ++latestRecordsRequest
   isLoading.value = true
   loadError.value = ''
   try {
@@ -41,6 +43,7 @@ async function loadRecords() {
       throw new Error(error.message || '공부 기록을 불러오지 못했습니다.')
     }
     const data = await response.json()
+    if (requestId !== latestRecordsRequest) return
     records.value = data.map(record => ({
       id: record.id,
       subject: record.subject_name,
@@ -51,9 +54,10 @@ async function loadRecords() {
       end: parseDatabaseDateTime(record.end_time),
     }))
   } catch (error) {
+    if (requestId !== latestRecordsRequest) return
     loadError.value = error.message || '공부 기록을 불러오지 못했습니다.'
   } finally {
-    isLoading.value = false
+    if (requestId === latestRecordsRequest) isLoading.value = false
   }
 }
 
@@ -170,23 +174,34 @@ const sessionsByDate = computed(() => {
     const endAt = new Date(end)
     if (isNaN(startAt) || isNaN(endAt) || endAt <= startAt) continue // 잘못된 기록은 건너뜀
 
-    const dayStart = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate())
-    while (dayStart < endAt) {
+    // 캘린더에 표시되는 날짜까지만 분할해 비정상적으로 긴 기록도 렌더링을 막지 않게 합니다.
+    const firstDay = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate())
+    const finalDay = new Date(endAt.getFullYear(), endAt.getMonth(), endAt.getDate())
+    const visibleStart = new Date(visibleDateRange.value.from)
+    const visibleEnd = new Date(visibleDateRange.value.to)
+    const firstVisibleDay = new Date(visibleStart.getFullYear(), visibleStart.getMonth(), visibleStart.getDate())
+    const lastVisibleDay = new Date(visibleEnd.getFullYear(), visibleEnd.getMonth(), visibleEnd.getDate())
+    const dayStart = new Date(Math.max(firstDay.getTime(), firstVisibleDay.getTime()))
+    const lastDayToRender = Math.min(finalDay.getTime(), lastVisibleDay.getTime())
+
+    while (dayStart.getTime() <= lastDayToRender) {
       const nextDay = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate() + 1)
-      const segStart = Math.max(startAt, dayStart)
-      const segEnd = Math.min(endAt, nextDay)
+      const segStart = Math.max(startAt.getTime(), dayStart.getTime())
+      const segEnd = Math.min(endAt.getTime(), nextDay.getTime())
 
       if (segEnd > segStart) {
         const key = dateKey(dayStart)
+        const segmentStart = new Date(segStart)
+        const segmentEnd = new Date(segEnd)
         ;(result[key] ??= []).push({
           id,
           subject,
           detail,
           color: subjectColor.value.get(subject),
-          start: segStart.getHours() * 60 + segStart.getMinutes(),
-          end: segEnd.getTime() === nextDay.getTime()
+          start: segmentStart.getHours() * 60 + segmentStart.getMinutes(),
+          end: segEnd === nextDay.getTime()
             ? 24 * 60
-            : segEnd.getHours() * 60 + segEnd.getMinutes(),
+            : segmentEnd.getHours() * 60 + segmentEnd.getMinutes(),
         })
       }
       dayStart.setDate(dayStart.getDate() + 1)
@@ -210,11 +225,12 @@ const weeks = computed(() => buildWeeks(currentYear.value, currentMonth.value))
 
 function buildWeeks(year, month) {
   const first = new Date(year, month - 1, 1)
-  const lastDate = new Date(year, month, 0).getDate()
+  const last = new Date(year, month, 0)
   const cursor = new Date(year, month - 1, 1 - first.getDay())
+  const lastVisible = new Date(year, month - 1, last.getDate() + (6 - last.getDay()))
   const result = []
 
-  while (result.length === 0 || (cursor.getMonth() === month - 1 && cursor.getDate() <= lastDate)) {
+  while (cursor <= lastVisible) {
     const week = []
     for (let i = 0; i < 7; i++) {
       const inMonth = cursor.getMonth() === month - 1

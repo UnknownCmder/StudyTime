@@ -3,10 +3,11 @@ const express = require('express')
 const app = express()
 const cors = require('cors')
 const path = require('path')
-const session = require('express-session')
-require('./database/init_setting_DB')
-
+// .env 값을 읽은 뒤 세션 설정이 SESSION_SECRET을 참조하도록 합니다.
 dotenv.config({ path: path.join(__dirname, '.env') }); //환경 변수 로드
+// 테이블 초기화 코드를 실행하고, 공용 세션 미들웨어를 불러옵니다.
+require('./database/init_setting_DB')
+const sessionMiddleware = require('./session')()
 
 const port = process.env.PORT || 8080
 
@@ -15,18 +16,8 @@ app.use(cors({
     credentials: true,
 }))
 app.use(express.json())
-app.use(session({
-    name: 'studytime_sid',
-    secret: process.env.SESSION_SECRET || 'studytime-development-secret-change-me',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 1000 * 60 * 60 * 24,
-    },
-}))
+// API 라우트보다 먼저 세션을 복원해 각 라우트에서 req.session을 쓸 수 있게 합니다.
+app.use(sessionMiddleware)
 app.use('/', express.static(path.join(__dirname, 'public')))
 
 const index = require('./routes/index');

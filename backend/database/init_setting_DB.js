@@ -1,5 +1,16 @@
 const db = require('./connectDB');
 
+// 세션 ID, 직렬화된 세션 데이터, 만료 시각을 저장할 테이블을 준비합니다.
+db.run(`CREATE TABLE IF NOT EXISTS sessions (
+    sid TEXT PRIMARY KEY,
+    sess TEXT NOT NULL,
+    expired_at INTEGER NOT NULL
+)`, (err) => {
+    if (err) console.error('Error creating sessions table:', err.message);
+    // 만료된 세션을 빠르게 찾고 지우도록 만료 시각 인덱스를 준비합니다.
+    else db.run('CREATE INDEX IF NOT EXISTS idx_sessions_expired_at ON sessions (expired_at)');
+});
+
 db.run('PRAGMA foreign_keys = ON;', (err) => { // 외래키 제약 조건 활성화
     if (err) {
         console.error('Error enabling foreign key constraints:', err.message);

@@ -229,7 +229,39 @@ function deleteActiveStudyRecord(userId, recordId) {
     });
 }
 
+// 만료되지 않은 세션을 ID로 조회합니다. 만료 시각은 현재 시각과 비교합니다.
+function getSession(sid, callback) {
+    db.get('SELECT sess FROM sessions WHERE sid = ? AND expired_at > ?', [sid, Date.now()], callback);
+}
+
+// 세션을 저장합니다. 같은 ID가 이미 있으면 기존 값을 새 데이터로 갱신합니다.
+function setSession(sid, serializedSession, expiresAt, callback) {
+    db.run(
+        `INSERT INTO sessions (sid, sess, expired_at) VALUES (?, ?, ?)
+        ON CONFLICT(sid) DO UPDATE SET sess = excluded.sess, expired_at = excluded.expired_at`,
+        [sid, serializedSession, expiresAt],
+        callback,
+    );
+}
+
+// 로그아웃 등으로 폐기된 세션을 ID 기준으로 삭제합니다.
+function deleteSession(sid, callback) {
+    db.run('DELETE FROM sessions WHERE sid = ?', [sid], callback);
+}
+
+// 세션 데이터는 유지하고 만료 시각만 연장합니다.
+function touchSession(sid, expiresAt, callback) {
+    db.run('UPDATE sessions SET expired_at = ? WHERE sid = ?', [expiresAt, sid], callback);
+}
+
+// 만료 시각이 지난 세션을 저장소에서 정리합니다.
+function deleteExpiredSessions(callback) {
+    db.run('DELETE FROM sessions WHERE expired_at <= ?', [Date.now()], callback);
+}
+
 module.exports = {
+    // 다른 모듈에서 같은 SQLite 연결을 사용할 수 있도록 공개합니다.
+    connection: db,
     getStudyRecords,
     getUserSubjects,
     createUserSubject,
@@ -240,4 +272,10 @@ module.exports = {
     finishActiveStudyRecord,
     deleteStudyRecord,
     deleteActiveStudyRecord,
+    // 세션 저장소가 사용할 DB 작업 함수들입니다.
+    getSession,
+    setSession,
+    deleteSession,
+    touchSession,
+    deleteExpiredSessions,
 };
