@@ -8,11 +8,13 @@ function getExpirationTime(sess) {
         : Date.now() + 24 * 60 * 60 * 1000;
 }
 
-// express-session과 SQLite DB 함수 사이를 연결하는 저장소입니다.
-class SQLiteSessionStore extends session.Store {
+// express-session의 Store 인터페이스를 MySQL 세션 테이블과 연결합니다.
+// 세션 본문은 express-session이 직렬화한 JSON이고, DB 계층은 이를 그대로 보관합니다.
+class MySQLSessionStore extends session.Store {
     constructor(options = {}) {
         super(options);
-        // 주기적으로 만료된 세션을 지워 DB에 불필요한 행이 쌓이지 않게 합니다.
+        // 오래된 세션 행이 계속 쌓이지 않도록 기본 15분마다 만료 행을 정리합니다.
+        // cleanupInterval=0은 정리 타이머가 필요 없는 환경에서 이를 끄는 선택지입니다.
         if (options.cleanupInterval !== 0) {
             this.cleanupTimer = setInterval(
                 () => database.deleteExpiredSessions(() => {}),
@@ -24,6 +26,7 @@ class SQLiteSessionStore extends session.Store {
 
     // express-session이 요청 쿠키의 세션을 복구할 때 호출합니다.
     get(sid, callback) {
+        // 저장 계층에서 만료 시각도 검사하므로 존재하지만 만료된 세션은 복원되지 않습니다.
         database.getSession(sid, (error, row) => {
             if (error) return callback(error);
             if (!row) return callback(null, null);
@@ -37,21 +40,25 @@ class SQLiteSessionStore extends session.Store {
 
     // 세션이 새로 생성되거나 바뀌었을 때 DB에 저장합니다.
     set(sid, sess, callback = () => {}) {
+        // express-session 객체를 JSON 문자열로 바꿔 MySQL TEXT 컬럼에 저장합니다.
         database.setSession(sid, JSON.stringify(sess), getExpirationTime(sess), callback);
     }
 
     // 로그아웃 등 세션 폐기 시 해당 행을 삭제합니다.
     destroy(sid, callback = () => {}) {
+        // 로그아웃 시 현재 세션 ID에 해당하는 행을 제거합니다.
         database.deleteSession(sid, callback);
     }
 
     // 요청으로 세션이 갱신됐을 때 만료 시각을 연장합니다.
     touch(sid, sess, callback = () => {}) {
+        // 세션 본문을 다시 쓰지 않고 만료 시각만 업데이트해 DB 쓰기를 줄입니다.
         database.touchSession(sid, getExpirationTime(sess), callback);
     }
 
     // 저장소 정리 타이머를 멈춥니다. 공유 DB 연결은 닫지 않습니다.
     close(callback = () => {}) {
+        // 타이머만 종료합니다. 연결 풀은 앱 내 다른 DB 코드도 공유하므로 여기서 닫지 않습니다.
         if (this.cleanupTimer) clearInterval(this.cleanupTimer);
         callback();
     }
@@ -62,7 +69,8 @@ module.exports = (options = {}) => session({
     // 브라우저 쿠키와 세션 서명에 사용할 설정입니다.
     name: 'studytime_sid',
     secret: options.secret || process.env.SESSION_SECRET || 'studytime-development-secret-change-me',
-    store: new SQLiteSessionStore({ cleanupInterval: options.cleanupInterval }),
+    // express-session 기본 메모리 저장소는 재시작 시 세션이 사라지므로 MySQL 저장소를 사용합니다.
+    store: new MySQLSessionStore({ cleanupInterval: options.cleanupInterval }),
     // 변경 없는 세션의 불필요한 저장을 줄이는 설정입니다.
     resave: false,
     saveUninitialized: false,

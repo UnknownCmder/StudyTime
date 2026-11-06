@@ -53,7 +53,8 @@ router.post('/subjects', async (req, res, next) => {
     try {
         res.status(201).send(await createUserSubject(session.userId, subject_name.trim(), subject_color));
     } catch (error) {
-        if (error.code === 'SQLITE_CONSTRAINT') {
+        // 사용자별 과목명 UNIQUE 제약 위반을 MySQL 에러 코드로 판별해 중복 응답으로 바꿉니다.
+        if (error.code === 'ER_DUP_ENTRY') {
             res.status(409).send({ message: '이미 등록된 과목 이름입니다.' });
             return;
         }

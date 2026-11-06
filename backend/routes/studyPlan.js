@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../database/connectDB');
+// 목록 SELECT와 등록 INSERT를 각기 결과 형태에 맞는 공통 DB 함수로 실행합니다.
+const { query, execute } = require('../database/connectDB');
 const { getSession } = require('./signin');
 
 function requireSession(req, res) {
@@ -12,7 +13,8 @@ function requireSession(req, res) {
     return session;
 }
 
-router.post('/', (req, res, next) => {
+// async 핸들러에서 MySQL Promise를 기다려 쿼리 오류를 Express next로 전달합니다.
+router.post('/', async (req, res, next) => {
     const session = requireSession(req, res);
     if (!session) return;
 
@@ -24,23 +26,26 @@ router.post('/', (req, res, next) => {
         return;
     }
 
-    db.run(
-        'INSERT INTO study_plan (user_id, subject_name, start_time, end_time) VALUES (?, ?, ?, ?)',
-        [session.userId, subject_name.trim(), start_time, end_time],
-        function (err) {
-            if (err) return next(err);
-            res.status(201).send({
-                id: this.lastID,
-                user_id: session.userId,
-                subject_name: subject_name.trim(),
-                start_time,
-                end_time,
-            });
-        },
-    );
+    try {
+        // INSERT 결과의 insertId를 기존 API 응답의 id 필드로 돌려줍니다.
+        const result = await execute(
+            'INSERT INTO study_plan (user_id, subject_name, start_time, end_time) VALUES (?, ?, ?, ?)',
+            [session.userId, subject_name.trim(), start_time, end_time],
+        );
+        res.status(201).send({
+            id: result.insertId,
+            user_id: session.userId,
+            subject_name: subject_name.trim(),
+            start_time,
+            end_time,
+        });
+    } catch (error) {
+        next(error);
+    }
 });
 
-router.get('/', (req, res, next) => {
+// 선택 기간 조건을 파라미터 목록과 함께 구성해 동적 SQL에서도 값 결합을 안전하게 유지합니다.
+router.get('/', async (req, res, next) => {
     const session = requireSession(req, res);
     if (!session) return;
 
@@ -62,14 +67,16 @@ router.get('/', (req, res, next) => {
         params.push(Number(to));
     }
 
-    db.all(
-        `SELECT id, subject_name, start_time, end_time FROM study_plan WHERE ${conditions.join(' AND ')} ORDER BY start_time ASC`,
-        params,
-        (err, plans) => {
-            if (err) return next(err);
-            res.send(plans);
-        },
-    );
+    try {
+        // 사용자 조건은 항상 포함하며 from/to가 전달된 경우에만 해당 범위를 더합니다.
+        const plans = await query(
+            `SELECT id, subject_name, start_time, end_time FROM study_plan WHERE ${conditions.join(' AND ')} ORDER BY start_time ASC`,
+            params,
+        );
+        res.send(plans);
+    } catch (error) {
+        next(error);
+    }
 });
 
 module.exports = router;

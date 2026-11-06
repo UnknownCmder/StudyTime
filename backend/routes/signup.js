@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../database/connectDB');
+// 계정 INSERT는 결과 메타데이터를 쓰지 않으므로 공통 execute 헬퍼를 이용합니다.
+const { execute } = require('../database/connectDB');
 const { hashPassword } = require('../utils/password');
 
 router.post('/', async function (req, res, next) {
@@ -31,26 +32,20 @@ router.post('/', async function (req, res, next) {
         // DB에 저장하기 전에 비밀번호를 평문이 아닌 해시 값으로 변환합니다.
         const hashedPassword = await hashPassword(password);
 
-        db.run(
-            'INSERT INTO users (user_text_id, password) VALUES (?, ?)',
+        // Promise가 성공적으로 끝난 뒤에만 가입 성공 응답을 보냅니다.
+        // 중복 아이디의 MySQL 고유 키 오류는 아래에서 ER_DUP_ENTRY로 구분합니다.
+        // 원문 비밀번호가 아닌 해시를 users.hashed_pw 컬럼에 저장합니다.
+        await execute(
+            'INSERT INTO users (user_text_id, hashed_pw) VALUES (?, ?)',
             [id, hashedPassword],
-            function (err) {
-                if (!err) {
-                    // 가입 성공 후 프론트는 로그인 페이지로 이동합니다.
-                    res.status(201).send({ message: '회원가입이 완료되었습니다.' });
-                    return;
-                }
-
-                if (err.code === 'SQLITE_CONSTRAINT') {
-                    // users.user_text_id가 UNIQUE라서 같은 아이디가 있으면 여기로 들어옵니다.
-                    res.status(409).send({ message: '이미 사용 중인 아이디입니다.' });
-                    return;
-                }
-
-                next(err);
-            },
         );
+        res.status(201).send({ message: '회원가입이 완료되었습니다.' });
     } catch (error) {
+        // SQLite 오류 코드 대신 MySQL 드라이버의 고유 키 위반 코드를 확인합니다.
+        if (error.code === 'ER_DUP_ENTRY') {
+            res.status(409).send({ message: '이미 사용 중인 아이디입니다.' });
+            return;
+        }
         next(error);
     }
 });

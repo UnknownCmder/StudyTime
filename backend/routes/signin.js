@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../database/connectDB');
+// 로그인 사용자 조회는 공통 MySQL query 헬퍼를 사용합니다.
+const { query } = require('../database/connectDB');
 const { verifyPassword } = require('../utils/password');
 
 // 로그인 세션이 있으면 반환하고, 로그인하지 않았으면 null을 반환합니다.
@@ -19,7 +20,7 @@ router.get('/status', (req, res) => {
 });
 
 // 아이디와 비밀번호를 확인하고 성공하면 로그인 세션을 생성하는 API입니다.
-router.post('/', (req, res, next) => {
+router.post('/', async (req, res, next) => {
     // JSON 요청 본문에서 로그인 정보를 가져옵니다.
     const { id, password } = req.body;
     // 필수 값이 빠졌으면 DB 조회 없이 잘못된 요청으로 응답합니다.
@@ -44,41 +45,40 @@ router.post('/', (req, res, next) => {
     }
 
     // 입력한 아이디에 해당하는 계정의 비밀번호 해시를 조회합니다.
-    db.get('SELECT id, user_text_id, password FROM users WHERE user_text_id = ?', [id], async (err, user) => {
-        // DB 오류는 Express의 오류 처리기로 전달합니다.
-        if (err) return next(err);
+    try {
+        // query는 행 배열을 Promise로 반환하므로 첫 행을 사용자 정보로 꺼냅니다.
+        // 입력값은 SQL 문자열에 이어 붙이지 않고 ? 파라미터로 전달합니다.
+        // 비밀번호 해시 컬럼명은 실제 users 테이블 정의의 hashed_pw와 일치시킵니다.
+        const [user] = await query('SELECT id, user_text_id, hashed_pw FROM users WHERE user_text_id = ?', [id]);
         // 계정이 없을 때도 비밀번호 오류와 같은 메시지로 응답합니다.
         if (!user) {
             res.status(401).send({ message: '아이디 또는 비밀번호가 올바르지 않습니다.' });
             return;
         }
 
-        try {
-            // 입력한 비밀번호를 DB의 해시와 안전하게 비교합니다.
-            const isPasswordValid = await verifyPassword(password, user.password);
-            // 비밀번호가 일치하지 않으면 인증 실패로 응답합니다.
-            if (!isPasswordValid) {
-                res.status(401).send({ message: '아이디 또는 비밀번호가 올바르지 않습니다.' });
-                return;
-            }
-
-            // 로그인할 때 세션 ID를 갱신해 세션 고정 공격을 막습니다.
-            req.session.regenerate((sessionError) => {
-                // 세션 생성 중 오류가 발생하면 오류 처리기로 전달합니다.
-                if (sessionError) return next(sessionError);
-                // 서버 세션에 로그인한 사용자의 ID를 저장합니다.
-                req.session.userId = user.id;
-                // 세션 저장이 끝난 뒤 성공 응답을 보냅니다.
-                req.session.save((saveError) => {
-                    if (saveError) return next(saveError);
-                    res.send({ isLoggedIn: true, userId: user.id, userTextId: user.user_text_id });
-                });
-            });
-        } catch (error) {
-            // 비밀번호 검증 중 발생한 예외를 Express 오류 처리기로 전달합니다.
-            next(error);
+        // 입력한 비밀번호를 DB의 해시와 안전하게 비교합니다.
+        const isPasswordValid = await verifyPassword(password, user.hashed_pw);
+        // 비밀번호가 일치하지 않으면 인증 실패로 응답합니다.
+        if (!isPasswordValid) {
+            res.status(401).send({ message: '아이디 또는 비밀번호가 올바르지 않습니다.' });
+            return;
         }
-    });
+
+        // 로그인할 때 세션 ID를 갱신해 세션 고정 공격을 막습니다.
+        req.session.regenerate((sessionError) => {
+            // 세션 생성 중 오류가 발생하면 오류 처리기로 전달합니다.
+            if (sessionError) return next(sessionError);
+            // 서버 세션에 로그인한 사용자의 ID를 저장합니다.
+            req.session.userId = user.id;
+            // 세션 저장이 끝난 뒤 성공 응답을 보냅니다.
+            req.session.save((saveError) => {
+                if (saveError) return next(saveError);
+                res.send({ isLoggedIn: true, userId: user.id, userTextId: user.user_text_id });
+            });
+        });
+    } catch (error) {
+        next(error);
+    }
 });
 
 // 현재 로그인한 사용자의 세션을 삭제하는 로그아웃 API입니다.
