@@ -36,6 +36,24 @@ CREATE TABLE `daily_study_plan` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `email_verification`
+--
+
+DROP TABLE IF EXISTS `email_verification`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_verification` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `email` varchar(320) NOT NULL,
+  `hashed_code` varchar(300) NOT NULL,
+  `expired_at` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`),
+  KEY `idx_email_verification_expired_at` (`expired_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `sessions`
 --
 
@@ -72,7 +90,7 @@ CREATE TABLE `study_record` (
   KEY `fk_record_subject` (`subject_id`),
   CONSTRAINT `fk_record_subject` FOREIGN KEY (`subject_id`) REFERENCES `user_subjects` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_record_user` FOREIGN KEY (`user_num_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -94,7 +112,7 @@ CREATE TABLE `user_subjects` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_user_subject_name` (`user_num_id`,`subject_name`),
   CONSTRAINT `fk_subject_user` FOREIGN KEY (`user_num_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -134,25 +152,8 @@ CREATE TABLE `users` (
   `email` varchar(320) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_text_id` (`user_text_id`),
-  UNIQUE KEY `uq_users_email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `email_verification`
---
-
-DROP TABLE IF EXISTS `email_verification`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `email_verification` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `email` varchar(320) NOT NULL,
-  `hashed_code` varchar(300) NOT NULL,
-  `expired_at` bigint NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_email_verification_email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -185,4 +186,4 @@ CREATE TABLE `weekly_study_plan` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-11-07  1:12:20
+-- Dump completed on 2026-11-07 15:59:03

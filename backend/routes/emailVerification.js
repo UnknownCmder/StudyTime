@@ -6,6 +6,14 @@ const { sendVerificationCode } = require('../utils/email');
 
 const CODE_LIFETIME_MS = 10 * 60 * 1000;
 const RESEND_INTERVAL_MS = 60 * 1000;
+const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
+
+// 만료된 인증 코드 행을 세션 정리와 같은 15분 간격으로 제거합니다.
+const cleanupTimer = setInterval(() => {
+    execute('DELETE FROM email_verification WHERE expired_at <= ?', [Date.now()])
+        .catch((error) => console.error('Failed to clean up expired email verification codes:', error));
+}, CLEANUP_INTERVAL_MS);
+cleanupTimer.unref();
 
 function normalizeEmail(value) {
     return typeof value === 'string' ? value.trim().toLowerCase() : '';

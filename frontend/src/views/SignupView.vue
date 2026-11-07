@@ -74,11 +74,17 @@ async function handleSignup() {
             <h2>회원가입</h2>
 
             <label class="input-group">
+                <span>아이디</span>
+                <input v-model.trim="id" type="text" autocomplete="username" required />
+            </label>
+
+            <label class="input-group">
                 <span>이메일</span>
                 <input v-model.trim="email" type="email" autocomplete="email" required :disabled="emailVerified" />
                 <button type="button" class="secondary-btn" :disabled="isSendingCode || !email || emailVerified" @click="handleSendCode">
                     {{ isSendingCode ? '발송 중...' : codeSent ? '인증 코드 다시 받기' : '인증 코드 받기' }}
                 </button>
+                <p class="email-notice">주의 : 인증 코드 이메일이 <strong class="spam-warning">스팸메일함</strong>으로 들어갈 수도 있습니다. <strong class="spam-warning">스팸메일함</strong>을 확인하고, StudyTime 이름으로 온 이메일이 스팸 처리되었다면 <strong class="spam-warning">반드시 스팸 해제해주세요.</strong></p>
             </label>
 
             <label v-if="codeSent && !emailVerified" class="input-group">
@@ -87,11 +93,6 @@ async function handleSignup() {
                 <button type="button" class="secondary-btn" :disabled="isVerifyingCode || code.length !== 6" @click="handleVerifyCode">
                     {{ isVerifyingCode ? '확인 중...' : '이메일 인증' }}
                 </button>
-            </label>
-
-            <label class="input-group">
-                <span>아이디</span>
-                <input v-model.trim="id" type="text" autocomplete="username" required />
             </label>
 
             <label class="input-group">
@@ -147,6 +148,17 @@ async function handleSignup() {
     display: block;
     margin-bottom: 6px;
     font-weight: 700;
+}
+
+.email-notice {
+    margin: 8px 0 0;
+    color: color-mix(in srgb, var(--text-color) 75%, transparent);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.spam-warning {
+    color: #e57373;
 }
 
 .input-group input {
