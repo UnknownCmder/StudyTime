@@ -94,7 +94,7 @@ async function verifyEmail(email, code) {
     return data
 }
 
-async function signup(id, password, email) {
+async function signup(id, password, email, passwordConfirm) {
     // 회원가입 API는 성공 시 DB에 해시된 비밀번호를 저장합니다.
     const response = await fetch('/api/signup', {
         method: 'POST',
@@ -102,7 +102,7 @@ async function signup(id, password, email) {
             'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ id, password, email }),
+        body: JSON.stringify({ id, password, passwordConfirm, email }),
     })
 
     if (!response.ok) {

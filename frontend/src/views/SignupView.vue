@@ -7,6 +7,7 @@ const router = useRouter()
 const { signup, requestEmailVerification, verifyEmail } = useAuth()
 const id = ref('')
 const password = ref('')
+const passwordConfirm = ref('')
 const email = ref('')
 const code = ref('')
 const codeSent = ref(false)
@@ -54,10 +55,14 @@ async function handleSignup() {
         errorMessage.value = '먼저 이메일 인증을 완료해주세요.'
         return
     }
+    if (password.value !== passwordConfirm.value) {
+        errorMessage.value = '비밀번호가 일치하지 않습니다.'
+        return
+    }
     isSubmitting.value = true
     try {
         // 인증된 이메일과 함께 가입 정보를 서버로 보냅니다.
-        await signup(id.value, password.value, email.value)
+        await signup(id.value, password.value, email.value, passwordConfirm.value)
         router.push('/signin')
     } catch (error) {
         console.error('회원가입 실패:', error)
@@ -98,6 +103,11 @@ async function handleSignup() {
             <label class="input-group">
                 <span>비밀번호</span>
                 <input v-model="password" type="password" autocomplete="new-password" required />
+            </label>
+
+            <label class="input-group">
+                <span>비밀번호 확인</span>
+                <input v-model="passwordConfirm" type="password" autocomplete="new-password" required />
             </label>
 
             <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>

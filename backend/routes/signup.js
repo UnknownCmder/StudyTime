@@ -6,7 +6,7 @@ const { hashPassword } = require('../utils/password');
 
 router.post('/', async function (req, res, next) {
     // 회원가입 화면에서 입력한 아이디와 비밀번호를 받습니다.
-    const { id, password } = req.body;
+    const { id, password, passwordConfirm } = req.body;
     const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
 
     if (!email || req.session.verifiedEmail !== email) {
@@ -26,6 +26,11 @@ router.post('/', async function (req, res, next) {
 
     if (typeof password !== 'string' || password.length < 6 || password.length > 20) {
         res.status(400).send({ message: '비밀번호는 문자가 포함된 6자 이상 20자 이하로 입력해주세요.' });
+        return;
+    }
+
+    if (typeof passwordConfirm !== 'string' || password !== passwordConfirm) {
+        res.status(400).send({ message: '비밀번호가 일치하지 않습니다.' });
         return;
     }
 
