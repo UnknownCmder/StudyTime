@@ -1,22 +1,20 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuth } from './composables/useAuth'
 
 const sidebarList = [
     { name: '홈', path: '/' },
     { name: '스탑워치', path: '/stopwatch' },
-    { name: '시간표', path: '/about' },
     { name: '공부기록', path: '/record' },
-    { name: '설정', path: '/about' },
+    { name: '공부계획', path: '/plan' },
+    { name: '설정', path: '/' },
 ]
 
 const isSidebarOpen = ref(true)
 const sidebarRef = ref(null)
 const router = useRouter()
-const route = useRoute()
 const { isLoggedIn, isLoginLoading, fetchLoginStatus, logout } = useAuth()
-const requiresLogin = computed(() => ['home', 'about', 'record'].includes(route.name))
 
 function toggleSidebar() {
   // 현재 화면 너비 확인

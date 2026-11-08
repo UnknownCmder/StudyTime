@@ -8,8 +8,9 @@
 
     --rainbow-btn-background:#171044;
     --rainbow-btn-hover-background:#7029c4;
+    --rainbow-border-gradient: linear-gradient(90deg, #ff1744, #ff9100, #ffea00, #00e676, #00b0ff, #651fff, #ff1744);
 
-    /* 스톱워치 라이트 모드에서만 사용하는 패널 색상 기본값 */
+    /* 스톱워치와 플래너 패널에서 공유하는 다크 모드 배경 */
     --stopwatch-shell-background: linear-gradient(145deg, #303743, #1e242d);
     --stopwatch-shell-border: #475569;
     --stopwatch-shell-text: #f8fafc;
@@ -38,9 +39,10 @@ button {
 
     --rainbow-btn-background:#f1f5f9;
     --rainbow-btn-hover-background:#7f8081;
+    --rainbow-border-gradient: linear-gradient(90deg, #ff1744, #ff9100, #ffea00, #00e676, #00b0ff, #651fff, #ff1744);
 
-    /* 화이트 모드 스톱워치 패널 색상 */
-    --stopwatch-shell-background: #f1f5f9;
+    /* 라이트 모드에서는 흰색에 가까운 연회색 그라데이션을 사용합니다. */
+    --stopwatch-shell-background: linear-gradient(145deg, #ffffff, #e9edf2);
     --stopwatch-shell-border: #cbd5e1;
     --stopwatch-shell-text: #111827;
     --stopwatch-shell-shadow: 0 24px 55px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -55,16 +57,7 @@ button {
     border-radius: 14px;
     padding: 3px;
 
-    background: linear-gradient(
-        90deg,
-        #ff1744,
-        #ff9100,
-        #ffea00,
-        #00e676,
-        #00b0ff,
-        #651fff,
-        #ff1744
-    );
+    background: var(--rainbow-border-gradient);
 
     background-size: 300% 300%;
     animation: rainbow-flow 10s linear infinite;

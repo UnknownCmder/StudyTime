@@ -277,7 +277,7 @@ function blockStyle({ start, end, color }) {
   return {
     top: (start / 30) * ROW_H + 'px',
     height: ((end - start) / 30) * ROW_H + 'px',
-    backgroundColor: color,
+    '--block-color': color,
   }
 }
 
@@ -657,6 +657,7 @@ function dayTotal(sessions) {
   box-sizing: border-box;
   padding: 3px;
   border: 0;
+  border-left: 3px solid var(--block-color);
   border-radius: 50%;
   background-color: transparent;
 }
@@ -732,6 +733,7 @@ function dayTotal(sessions) {
 .calendar {
   border: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
   border-radius: 12px;
+  background: var(--stopwatch-shell-background);
   overflow: hidden;
 }
 
@@ -889,7 +891,7 @@ function dayTotal(sessions) {
   max-height: 460px;
   overflow-y: auto;
   border-top: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
-  background-color: var(--surface-color);
+  background: var(--stopwatch-shell-background);
 }
 
 .timeline {
@@ -946,6 +948,7 @@ function dayTotal(sessions) {
   flex-direction: column;
   padding: 2px 4px;
   border-radius: 4px;
+  background: color-mix(in srgb, var(--block-color) 26%, var(--surface-color));
   box-shadow: 0 1px 2px color-mix(in srgb, var(--text-color) 30%, transparent);
   overflow: hidden;
   color: #ffffff;
