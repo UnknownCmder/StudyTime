@@ -566,8 +566,7 @@ onUnmounted(() => {
     background: var(--surface-color);
 }
 
-.view-switch button,
-.today-button {
+.view-switch button {
     border: 0;
     border-radius: 9px;
     padding: 9px 16px;
@@ -608,7 +607,6 @@ onUnmounted(() => {
     height: 36px;
     border: 0;
     border-radius: 10px;
-    background: transparent;
     color: var(--text-color);
     font-size: 25px;
     line-height: 1;
@@ -634,18 +632,16 @@ onUnmounted(() => {
 
 .today-button {
     border: 0;
-    background: transparent;
     color: var(--text-color);
 }
 
-/* 무지개 테두리 안쪽은 각 버튼의 원래 배경색을 유지합니다. */
+/* 무지개 배경과 크기는 공통 rainbow-btn 규칙에서 적용합니다. */
 .arrow-button.rainbow-btn,
 .today-button.rainbow-btn,
 .add-button.rainbow-btn {
     box-sizing: border-box;
     padding: 3px;
     border: 0;
-    background: var(--rainbow-border-gradient);
 }
 
 .today-button.rainbow-btn {
@@ -856,7 +852,6 @@ onUnmounted(() => {
     height: 52px;
     border: 0;
     border-radius: 17px;
-    background: transparent;
     color: #fff;
     font-size: 31px;
     line-height: 1;

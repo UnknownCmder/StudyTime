@@ -50,7 +50,7 @@ button {
 
 
 /* 버튼 바깥의 무지개 테두리 */
-.rainbow-btn {
+button.rainbow-btn {
     position: relative;
     isolation: isolate;
     border: none;
@@ -66,7 +66,7 @@ button {
 }
 
 /* 버튼 내부 색 */
-.rainbow-btn::before {
+button.rainbow-btn::before {
     content: "";
     position: absolute;
     inset: 3px;
@@ -77,7 +77,7 @@ button {
 }
 
 /* 버튼 글자 */
-.rainbow-btn .inner {
+button.rainbow-btn .inner {
     display: block;
     padding: 15px 36px;
     color: var(--text-color);
@@ -88,42 +88,42 @@ button {
 }
 
 /* 마우스를 올렸을 때 */
-.rainbow-btn:hover::before {
+button.rainbow-btn:hover::before {
     background: var(--rainbow-btn-hover-background);
 }
 
-.rainbow-btn:hover {
+button.rainbow-btn:hover {
     transform: translateY(-2px);
     filter: drop-shadow(0 0 8px #a855f7);
 }
 
-.rainbow-btn:active:not(:disabled) {
+button.rainbow-btn:active:not(:disabled) {
     transform: translateY(1px) scale(0.96);
     filter: brightness(1.18) drop-shadow(0 0 10px #a855f7);
 }
 
-.rainbow-btn:active:not(:disabled)::before {
+button.rainbow-btn:active:not(:disabled)::before {
     background: var(--rainbow-btn-hover-background);
 }
 
-.rainbow-btn:focus-visible {
+button.rainbow-btn:focus-visible {
     outline: 2px solid #fff;
     outline-offset: 4px;
 }
 
-.rainbow-btn:disabled {
+button.rainbow-btn:disabled {
     cursor: not-allowed;
     opacity: 0.6;
     animation: none;
 }
 
-.rainbow-btn:disabled:hover {
+button.rainbow-btn:disabled:hover {
     transform: none;
     filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .rainbow-btn {
+    button.rainbow-btn {
         animation: none;
         transition: none;
     }
