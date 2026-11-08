@@ -1,85 +1,312 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { onMounted, ref } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { useAuth } from './composables/useAuth'
+
+const sidebarList = [
+    { name: '홈', path: '/' },
+    { name: '스탑워치', path: '/stopwatch' },
+    { name: '공부기록', path: '/record' },
+    { name: '공부계획', path: '/plan' },
+    { name: '설정', path: '/' },
+]
+
+const isSidebarOpen = ref(true)
+const sidebarRef = ref(null)
+const router = useRouter()
+const { isLoggedIn, isLoginLoading, fetchLoginStatus, logout } = useAuth()
+
+function toggleSidebar() {
+  // 현재 화면 너비 확인
+    const isMobile = window.innerWidth <= 768;
+
+    if (isMobile) {
+        // 모바일: 'mobile-open' 클래스를 토글하여 메뉴를 보여주거나 숨김
+        sidebarRef.value?.classList.toggle('mobile-open');
+    } else {
+        // 데스크탑: 'closed' 클래스를 토글하여 메뉴를 옆으로 밀어넣거나 뺌
+        isSidebarOpen.value = !isSidebarOpen.value;
+    }
+}
+
+function closeMobileSidebar() {
+    if (window.innerWidth <= 768) sidebarRef.value?.classList.remove('mobile-open')
+}
+
+async function handleAuthButtonClick() {
+    if (!isLoggedIn.value) {
+        router.push('/signin')
+        return
+    }
+
+    try {
+        const isLoggedOut = await logout()
+
+        if (isLoggedOut) {
+            router.push('/')
+        }
+    } catch (error) {
+        console.error('로그아웃 실패:', error)
+    }
+}
+
+onMounted(fetchLoginStatus)
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+    <div class="app">
+    <header class="header">
+        <div class="header-content">
+        <button id="btnSidebar" class="btn-sidebar" @click="toggleSidebar">
+            ☰ </button>
+        <h1 class="logo">StudyTime</h1>
+        </div>
+        <button id="btnLogin" type="button" :disabled="isLoginLoading" @click="handleAuthButtonClick">
+            {{ isLoggedIn ? '로그아웃' : '로그인' }}
+        </button>
+    </header>
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+    <nav id="sidebar" ref="sidebarRef" class="sidebar" :class="{ closed: !isSidebarOpen }">
+        <ul class="menu-list">
+        <li v-for="site in sidebarList" :key="site.name">
+            <RouterLink :to="site.path" @click="closeMobileSidebar">{{ site.name }}</RouterLink>
+        </li>
+        </ul>
+    </nav>
 
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
+    <main class="main-content">
+        <RouterView />
+    </main>
     </div>
-  </header>
-
-  <RouterView />
 </template>
 
 <style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
+/* 기본 초기화 */
+.app {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    color: var(--text-color);
+    font-family: 'Arial', sans-serif;
+  overflow: hidden; /* 스크롤바 관리 */
+
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    grid-template-rows: 60px 1fr;
+}
+
+/* --- 상단 헤더 스타일 --- */
+.header {
+    grid-column: 1 / -1;
+    grid-row: 1 / 2;
+
+    display: flex;
+    background-color: var(--surface-color);
+    color: var(--text-color);
+    border-bottom: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 1000; /* 항상 최상위 */
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
 .logo {
-  display: block;
-  margin: 0 auto 2rem;
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
 }
 
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
+#btnLogin {
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    font: inherit;
+    font-weight: bold;
+    padding: 8px 15px;
+    border-radius: 4px;
+    background-color: var(--surface-color);
+    text-decoration: none;
+    transition: background-color 0.3s ease;
 }
 
-nav a.router-link-exact-active {
-  color: var(--color-text);
+#btnLogin:hover {
+    background-color: var(--bg-color);
 }
 
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
+#btnLogin:disabled {
+    cursor: default;
+    opacity: 0.6;
 }
 
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
+
+.btn-sidebar {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 5px;
 }
 
-nav a:first-of-type {
-  border: 0;
+.btn-sidebar:hover {
+    color: var(--primary-color);
 }
 
-@media (min-width: 1024px) {
-  header {
+
+
+/* --- 왼쪽 사이드바 스타일 --- */
+.sidebar {
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+    height: 100%;
+    background-color: var(--surface-color);
+    border-right: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+    transition: transform 0.3s ease; /* 부드러운 이동 효과 */
+    overflow-y: auto;
+    
+    /* 사이드바가 접혔을 때를 위한 설정 */
+    transform: translateX(0); 
+}
+
+/* 사이드바 메뉴 스타일 */
+.menu-list {
+    list-style: none;
+    padding: 20px 0;
+}
+
+.menu-list li a {
+    display: block;
+    padding: 15px 20px;
+    text-decoration: none;
+    color: var(--text-color);
+    font-weight: bold;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+}
+
+.menu-list li a:hover {
+    color: var(--text-color);
+    background-color: var(--bg-color);
+}
+
+/* --- 메인 콘텐츠 스타일 --- */
+.main-content {
+    grid-row: 2 / 3;
+    grid-column: 2 / 3;
+    padding: 20px;
+    overflow-y: auto; /* 내용이 많으면 스크롤 */
+    background-color: var(--bg-color);
+}
+
+.login-required-message {
+    min-height: 100%;
+    margin: 0;
     display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
+    align-items: center;
+    justify-content: center;
+    color: var(--text-color);
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
 
-  .logo {
-    margin: 0 2rem 0 0;
-  }
+/* --- [핵심 기능] 사이드바 토글 상태 --- */
 
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
+/* 1. 사이드바가 닫혔을 때 */
+.sidebar.closed {
+    transform: translateX(-250px); /* 너비만큼 왼쪽으로 이동하여 숨김 */
+}
 
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
+/* --- 반응형 (모바일) --- */
+@media (max-width: 768px) {
+    .app {
+        height: 100dvh;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 56px minmax(0, 1fr);
+    }
 
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
+    .header {
+        padding: 0 10px;
+    }
+
+    .header-content {
+        gap: 8px;
+    }
+
+    .logo {
+        font-size: 20px;
+    }
+
+    #btnLogin {
+        padding: 7px 10px;
+        white-space: nowrap;
+    }
+
+    /* 모바일에서는 기본적으로 사이드바를 숨깁니다 */
+    .sidebar {
+        position: fixed;
+        top: 56px;
+        bottom: 0;
+        left: 0;
+        width: min(230px, 78vw);
+        height: auto;
+        margin-left: 0;
+        z-index: 999;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+        transform: translateX(-100%);
+    }
+
+    /* 모바일에서는 'closed' 클래스가 없을 때가 아니라
+        오히려 'active' 클래스가 붙어야 열리도록 로직을 반대로 활용하거나
+       JS에서 처리를 돕기 위해 아래와 같이 설정합니다. */
+    
+    /* 모바일에서 열렸을 때 */
+    .sidebar.closed {
+        transform: translateX(-100%);
+    }
+
+    .sidebar.mobile-open,
+    .sidebar.closed.mobile-open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        grid-column: 1;
+        grid-row: 2;
+        min-width: 0;
+        padding: 10px;
+    }
+
+    .menu-list li a {
+        padding: 12px 16px;
+    }
+}
+
+/* --- 로그인 박스 --- */
+.box-login {
+    width: 600px;
+    margin: 100px auto;
+    padding: 30px;
+    background-color: var(--surface-color);
+    border-radius: 8px;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--text-color) 24%, transparent);
+}
+
+.box-login .input-group input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border-radius: 4px;
+    border: none;
+    background-color: var(--bg-color);
+    color: var(--text-color);
 }
 </style>
