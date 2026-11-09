@@ -28,6 +28,9 @@ const selectedRecord = ref(null)
 const recordDetailDialog = ref(null)
 const deleteConfirmDialog = ref(null)
 const isDeletingRecord = ref(false)
+const isEditingEndTime = ref(false)
+const isSavingEndTime = ref(false)
+const editedEndTime = ref('')
 const selectedRecordError = ref('')
 
 async function loadRecords() {
@@ -95,6 +98,7 @@ function parseDatabaseDateTime(value) {
 
 function openRecord(recordId) {
   selectedRecord.value = records.value.find(record => record.id === recordId) ?? null
+    isEditingEndTime.value = false
   selectedRecordError.value = ''
   if (selectedRecord.value) recordDetailDialog.value.showModal()
 }
@@ -102,7 +106,49 @@ function openRecord(recordId) {
 function closeRecordDetails() {
   recordDetailDialog.value.close()
   selectedRecord.value = null
+    isEditingEndTime.value = false
   selectedRecordError.value = ''
+}
+
+function toLocalDateTimeInput(date) {
+  const pad = value => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+function beginEndTimeEdit() {
+  if (!selectedRecord.value) return
+  editedEndTime.value = toLocalDateTimeInput(selectedRecord.value.end)
+  isEditingEndTime.value = true
+  selectedRecordError.value = ''
+}
+
+async function saveEarlierEndTime() {
+  if (!selectedRecord.value || !editedEndTime.value) return
+  const nextEnd = new Date(editedEndTime.value)
+  if (Number.isNaN(nextEnd.getTime()) || nextEnd >= selectedRecord.value.end || nextEnd <= selectedRecord.value.start) {
+    selectedRecordError.value = '종료 시각은 시작 시각보다 뒤이고 기존 종료 시각보다 빨라야 합니다.'
+    return
+  }
+  isSavingEndTime.value = true
+  selectedRecordError.value = ''
+  try {
+    const response = await fetch(`/api/studyRecord/${selectedRecord.value.id}/end-time`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ end_time: nextEnd.toISOString() }),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(data.message || '종료 시각을 수정하지 못했습니다.')
+    const recordId = selectedRecord.value.id
+    await loadRecords()
+    selectedRecord.value = records.value.find(record => record.id === recordId) ?? null
+    isEditingEndTime.value = false
+  } catch (error) {
+    selectedRecordError.value = error.message || '종료 시각을 수정하지 못했습니다.'
+  } finally {
+    isSavingEndTime.value = false
+  }
 }
 
 function confirmDeleteRecord() {
@@ -545,7 +591,25 @@ function dayTotal(sessions) {
 
     <dialog ref="recordDetailDialog" class="record-dialog" aria-labelledby="record-dialog-title">
       <template v-if="selectedRecord">
-        <h2 id="record-dialog-title">공부 기록</h2>
+        <div class="record-dialog-heading">
+          <h2 id="record-dialog-title">공부 기록</h2>
+          <div class="record-heading-actions">
+            <button
+              v-if="!isEditingEndTime"
+              type="button"
+              class="record-edit-button"
+              aria-label="종료 시각 수정"
+              title="종료 시각 수정"
+              @click="beginEndTimeEdit"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+              </svg>
+            </button>
+            <button type="button" class="record-close-button" aria-label="닫기" @click="closeRecordDetails">×</button>
+          </div>
+        </div>
         <dl class="record-details">
           <dt>과목</dt>
           <dd>
@@ -557,14 +621,32 @@ function dayTotal(sessions) {
           <dt>시작</dt>
           <dd>{{ formatRecordDateTime(selectedRecord.start) }}</dd>
           <dt>종료</dt>
-          <dd>{{ formatRecordDateTime(selectedRecord.end) }}</dd>
+          <dd v-if="!isEditingEndTime">{{ formatRecordDateTime(selectedRecord.end) }}</dd>
+          <dd v-else class="record-end-time-editor">
+            <input
+              v-model="editedEndTime"
+              type="datetime-local"
+              step="1"
+              :min="toLocalDateTimeInput(selectedRecord.start)"
+              :max="toLocalDateTimeInput(new Date(selectedRecord.end.getTime() - 1000))"
+              aria-label="변경할 종료 시각"
+            >
+          </dd>
           <dt>휴식시간</dt>
           <dd>{{ formatDuration(selectedRecord.restTime) }}</dd>
         </dl>
         <p v-if="selectedRecordError" class="record-dialog-error" role="alert">{{ selectedRecordError }}</p>
         <div class="record-dialog-actions">
-          <button type="button" class="delete-record-button" @click="confirmDeleteRecord">삭제</button>
-          <button type="button" @click="closeRecordDetails">취소</button>
+          <template v-if="isEditingEndTime">
+            <button type="button" :disabled="isSavingEndTime" @click="isEditingEndTime = false">취소</button>
+            <button type="button" class="save-record-button" :disabled="isSavingEndTime" @click="saveEarlierEndTime">
+              {{ isSavingEndTime ? '저장 중…' : '저장' }}
+            </button>
+          </template>
+          <template v-else>
+            <button type="button" class="delete-record-button" @click="confirmDeleteRecord">삭제</button>
+            <button type="button" @click="closeRecordDetails">취소</button>
+          </template>
         </div>
       </template>
     </dialog>
@@ -1011,6 +1093,62 @@ function dayTotal(sessions) {
   font-size: 20px;
 }
 
+.record-dialog-heading,
+.record-heading-actions {
+  display: flex;
+  align-items: center;
+}
+
+.record-dialog-heading {
+  justify-content: space-between;
+}
+
+.record-heading-actions {
+  gap: 8px;
+  margin: -10px -8px 10px 0;
+}
+
+.record-edit-button,
+.record-close-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+  border-radius: 9px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.record-edit-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.record-close-button {
+  border: 0;
+  background: transparent;
+  font-size: 25px;
+}
+
+.record-end-time-editor input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);
+  border-radius: 8px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  font: inherit;
+}
+
 .record-details {
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr);
@@ -1078,6 +1216,12 @@ function dayTotal(sessions) {
   color: #ffffff;
 }
 
+.record-dialog-actions .save-record-button {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: #fff;
+}
+
 .record-dialog-actions button:disabled {
   cursor: wait;
   opacity: 0.6;
@@ -1109,19 +1253,28 @@ function dayTotal(sessions) {
   }
 
   .calendar {
-    overflow-x: auto;
-    overflow-y: hidden;
+    width: 100%;
+    overflow: hidden;
   }
 
-  .cal-row,
+  .cal-row {
+    grid-template-columns: 32px repeat(7, minmax(0, 1fr));
+  }
+
   .week {
-    min-width: 520px;
+    min-width: 0;
+  }
+
+  .cal-head .dow {
+    padding: 8px 0;
+    font-size: 11px;
   }
 
   .cal-cell {
-    min-height: 58px;
-    gap: 4px;
-    padding: 5px 2px;
+    min-width: 0;
+    min-height: 52px;
+    gap: 3px;
+    padding: 4px 1px;
   }
 
   .cal-cell .dom {
