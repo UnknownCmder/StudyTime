@@ -303,9 +303,9 @@ function buildWeeks(year, month) {
 /* =========================================================
  * 6. 타임라인 (크기 · 시간 눈금 · 공부 막대 위치)
  * ========================================================= */
-const ROW_H = 45                          // 30분 = 45px (기존 간격의 3/4)
+const ROW_H = 45                          // 30분 눈금 간격(px): 달력 눈금과 펼침 높이가 함께 사용
 const SLOT_COUNT = 48                     // 24시간 / 30분 = 48칸
-const TRACK_HEIGHT = ROW_H * SLOT_COUNT   // 하루 전체 높이. 보이는 패널은 스크롤 영역으로 제한
+const TRACK_HEIGHT = ROW_H * SLOT_COUNT   // 주 펼침 높이 = 30분 간격 × 48칸
 
 // 왼쪽 시간 축 눈금 (00:00 ~ 24:00, 30분 단위)
 const axisMarks = []
@@ -540,7 +540,11 @@ function dayTotal(sessions) {
             <div class="timeline-scroll">
               <div
                 class="timeline"
-                :style="{ '--row-height': ROW_H + 'px', '--hour-height': ROW_H * 2 + 'px' }"
+                :style="{
+                  '--row-height': ROW_H + 'px',
+                  '--hour-height': ROW_H * 2 + 'px',
+                  '--timeline-height': TRACK_HEIGHT + 'px',
+                }"
               >
                 <!-- 왼쪽 시간 축 (30분 단위) -->
                 <div class="axis" :style="{ height: TRACK_HEIGHT + 'px' }">
@@ -813,6 +817,7 @@ function dayTotal(sessions) {
  *    버튼 열 너비 = 타임라인 시간 축 너비 → 날짜 칸과 타임라인 컬럼이 세로로 정렬됨
  * ========================================================= */
 .calendar {
+  --calendar-columns: 56px repeat(7, minmax(0, 1fr));
   border: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
   border-radius: 12px;
   background: var(--stopwatch-shell-background);
@@ -821,7 +826,7 @@ function dayTotal(sessions) {
 
 .cal-row {
   display: grid;
-  grid-template-columns: 56px repeat(7, 1fr);
+  grid-template-columns: var(--calendar-columns, 56px repeat(7, minmax(0, 1fr)));
 }
 
 /* 요일 헤더 */
@@ -970,16 +975,16 @@ function dayTotal(sessions) {
  * 7. 타임라인 (시간축 56px + 요일 7칸)
  * ========================================================= */
 .timeline-scroll {
-  max-height: 460px;
+  height: calc(var(--timeline-height) + 16px);
   overflow-y: auto;
-  border-top: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
   background: var(--stopwatch-shell-background);
 }
 
 .timeline {
   display: grid;
-  grid-template-columns: 56px repeat(7, 1fr);
+  grid-template-columns: var(--calendar-columns, 56px repeat(7, minmax(0, 1fr)));
   padding: 8px 0;
+  box-sizing: border-box;
 }
 
 /* 왼쪽 시간 축 */
@@ -1258,7 +1263,11 @@ function dayTotal(sessions) {
   }
 
   .cal-row {
-    grid-template-columns: 32px repeat(7, minmax(0, 1fr));
+    --calendar-columns: 32px repeat(7, minmax(0, 1fr));
+  }
+
+  .calendar {
+    --calendar-columns: 32px repeat(7, minmax(0, 1fr));
   }
 
   .week {
@@ -1287,12 +1296,7 @@ function dayTotal(sessions) {
   }
 
   .timeline-scroll {
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-  }
-
-  .timeline {
-    min-width: 520px;
+    overflow-x: hidden;
   }
 
   .record-dialog,
