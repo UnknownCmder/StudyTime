@@ -1055,6 +1055,28 @@ onUnmounted(() => {
         max-height: 70vh;
     }
 
+    .weekly-timetable {
+        grid-template-columns: 34px repeat(7, minmax(0, 1fr));
+        min-width: 0;
+    }
+
+    .time-mark {
+        right: 3px;
+        font-size: 8px;
+    }
+
+    .timetable-day h2 {
+        font-size: 11px;
+    }
+
+    .weekly-plan-block {
+        right: 1px;
+        left: 1px;
+        padding: 2px;
+        border-left-width: 2px;
+        font-size: 8px;
+    }
+
     .period-nav {
         gap: 8px;
     }

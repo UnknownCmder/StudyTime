@@ -1109,19 +1109,28 @@ function dayTotal(sessions) {
   }
 
   .calendar {
-    overflow-x: auto;
-    overflow-y: hidden;
+    width: 100%;
+    overflow: hidden;
   }
 
-  .cal-row,
+  .cal-row {
+    grid-template-columns: 32px repeat(7, minmax(0, 1fr));
+  }
+
   .week {
-    min-width: 520px;
+    min-width: 0;
+  }
+
+  .cal-head .dow {
+    padding: 8px 0;
+    font-size: 11px;
   }
 
   .cal-cell {
-    min-height: 58px;
-    gap: 4px;
-    padding: 5px 2px;
+    min-width: 0;
+    min-height: 52px;
+    gap: 3px;
+    padding: 4px 1px;
   }
 
   .cal-cell .dom {
