@@ -100,6 +100,64 @@ router.post('/weekly', async (req, res, next) => {
     }
 });
 
+router.put('/weekly/:id', async (req, res, next) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const id = Number(req.params.id);
+    const { subject_id: subjectId, day_of_week: day, start_time: startTime, end_time: endTime } = req.body;
+    if (!Number.isInteger(id) || id < 1 || !validPlan(subjectId, startTime, endTime)
+        || !Number.isInteger(day) || day < 0 || day > 6) {
+        res.status(400).send({ message: '요일, 과목과 시작·종료 시간을 확인해주세요.' });
+        return;
+    }
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        const [users] = await connection.execute('SELECT id FROM users WHERE id = ? FOR UPDATE', [session.userId]);
+        if (!users.length) {
+            await connection.rollback();
+            res.status(401).send({ message: '로그인 사용자를 확인할 수 없습니다.' });
+            return;
+        }
+        const [currentPlans] = await connection.execute(
+            'SELECT id FROM weekly_study_plan WHERE id = ? AND user_num_id = ?', [id, session.userId],
+        );
+        if (!currentPlans.length) {
+            await connection.rollback();
+            res.status(404).send({ message: '계획을 찾을 수 없습니다.' });
+            return;
+        }
+        const [overlaps] = await connection.execute(`SELECT id FROM weekly_study_plan
+            WHERE user_num_id = ? AND day_of_week = ? AND id <> ?
+                AND start_time < ? AND end_time > ? LIMIT 1`,
+        [session.userId, day, id, endTime, startTime]);
+        if (overlaps.length) {
+            await connection.rollback();
+            res.status(409).send({ message: '선택한 요일에 해당 시간과 겹치는 계획이 이미 있습니다.' });
+            return;
+        }
+        const [subjects] = await connection.execute(
+            'SELECT id FROM user_subjects WHERE id = ? AND user_num_id = ?', [subjectId, session.userId],
+        );
+        if (!subjects.length) {
+            await connection.rollback();
+            res.status(400).send({ message: '선택한 과목을 찾을 수 없습니다.' });
+            return;
+        }
+        await connection.execute(`UPDATE weekly_study_plan
+            SET subject_id = ?, day_of_week = ?, start_time = ?, end_time = ?
+            WHERE id = ? AND user_num_id = ?`,
+        [subjectId, day, startTime, endTime, id, session.userId]);
+        await connection.commit();
+        res.send({ updated: true });
+    } catch (error) {
+        await connection.rollback();
+        next(error);
+    } finally {
+        connection.release();
+    }
+});
+
 router.delete('/weekly/:id', async (req, res, next) => {
     const session = requireSession(req, res);
     if (!session) return;
@@ -147,6 +205,30 @@ router.post('/daily', async (req, res, next) => {
         }
         next(error);
     }
+});
+
+router.put('/daily/:id', async (req, res, next) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const id = Number(req.params.id);
+    const { subject_id: subjectId, detail = '' } = req.body;
+    if (!Number.isInteger(id) || id < 1 || !Number.isInteger(subjectId) || subjectId < 1
+        || typeof detail !== 'string' || detail.length > 100) {
+        res.status(400).send({ message: '과목과 세부 내용(100자 이하)을 확인해주세요.' });
+        return;
+    }
+    try {
+        const [subjects] = await pool.execute(
+            'SELECT id FROM user_subjects WHERE id = ? AND user_num_id = ?', [subjectId, session.userId],
+        );
+        if (!subjects.length) return res.status(400).send({ message: '선택한 과목을 찾을 수 없습니다.' });
+        const result = await execute(
+            'UPDATE daily_study_plan SET subject_id = ?, detail = ? WHERE id = ? AND user_num_id = ?',
+            [subjectId, detail.trim(), id, session.userId],
+        );
+        if (!result.affectedRows) return res.status(404).send({ message: '계획을 찾을 수 없습니다.' });
+        res.send({ updated: true });
+    } catch (error) { next(error); }
 });
 
 router.patch('/daily/:id', async (req, res, next) => {

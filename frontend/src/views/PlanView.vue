@@ -18,10 +18,16 @@ const dialog = ref(null)
 const dailyDeleteDialog = ref(null)
 const selectedDailyPlan = ref(null)
 const isDeletingDailyPlan = ref(false)
+const dailyDetailDialog = ref(null)
+const selectedDailyDetail = ref(null)
+const isEditingDailyPlan = ref(false)
+const isSavingDailyPlan = ref(false)
 const planDetailDialog = ref(null)
 const selectedWeeklyPlan = ref(null)
+const isEditingWeeklyPlan = ref(false)
 const isDeletingPlan = ref(false)
-const form = ref({ subject_id: '', day_of_week: new Date().getDay(), start_time: '', end_time: '', detail: '' })
+const isSavingWeeklyPlan = ref(false)
+const form = ref({ subject_id: '', days_of_week: [], start_time: '', end_time: '', detail: '' })
 const days = ['일', '월', '화', '수', '목', '금', '토'] //데이터베스에서는 0(일요일)~6(토요일)으로 요일을 표현
 const today = new Date()
 
@@ -97,7 +103,7 @@ function openAdd() {
     error.value = ''
     form.value = {
         subject_id: subjects.value[0]?.id ?? '',
-        day_of_week: new Date().getDay(),
+        days_of_week: [],
         start_time: '',
         end_time: '',
         detail: '',
@@ -109,9 +115,17 @@ function closeDialog() {
     dialog.value?.close()
 }
 
+function togglePlanDay(day) {
+    const selectedDays = form.value.days_of_week
+    form.value.days_of_week = selectedDays.includes(day)
+        ? selectedDays.filter(selectedDay => selectedDay !== day)
+        : [...selectedDays, day].sort((a, b) => a - b)
+}
+
 // 주간 막대를 클릭하면 선택한 계획의 상세 정보를 표시합니다.
 function openWeeklyPlanDetails(plan) {
     selectedWeeklyPlan.value = plan
+    isEditingWeeklyPlan.value = false
     error.value = ''
     planDetailDialog.value?.showModal()
 }
@@ -119,6 +133,50 @@ function openWeeklyPlanDetails(plan) {
 function closeWeeklyPlanDetails() {
     planDetailDialog.value?.close()
     selectedWeeklyPlan.value = null
+    isEditingWeeklyPlan.value = false
+    error.value = ''
+}
+
+function startEditingWeeklyPlan() {
+    if (!selectedWeeklyPlan.value) return
+    selectedWeeklyPlan.value = { ...selectedWeeklyPlan.value }
+    isEditingWeeklyPlan.value = true
+    error.value = ''
+}
+
+function cancelEditingWeeklyPlan() {
+    isEditingWeeklyPlan.value = false
+    error.value = ''
+    const original = weeklyPlans.value.find(plan => plan.id === selectedWeeklyPlan.value?.id)
+    if (original) selectedWeeklyPlan.value = original
+}
+
+async function saveWeeklyPlanEdits() {
+    const plan = selectedWeeklyPlan.value
+    if (!plan || !plan.subject_id || !plan.start_time || !plan.end_time) {
+        error.value = '과목과 시작·종료 시간을 입력해주세요.'
+        return
+    }
+    isSavingWeeklyPlan.value = true
+    error.value = ''
+    try {
+        await request(`/api/studyPlan/weekly/${plan.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                subject_id: Number(plan.subject_id),
+                day_of_week: Number(plan.day_of_week),
+                start_time: plan.start_time,
+                end_time: plan.end_time,
+            }),
+        })
+        isEditingWeeklyPlan.value = false
+        await loadPlans()
+        selectedWeeklyPlan.value = weeklyPlans.value.find(item => item.id === plan.id) || plan
+    } catch (err) {
+        error.value = err.message || '계획을 수정하지 못했습니다.'
+    } finally {
+        isSavingWeeklyPlan.value = false
+    }
 }
 
 // 일별 계획의 삭제 버튼은 먼저 확인 팝업을 엽니다.
@@ -131,6 +189,49 @@ function confirmDailyPlanDeletion(plan) {
 function closeDailyDeleteDialog() {
     dailyDeleteDialog.value?.close()
     selectedDailyPlan.value = null
+}
+
+function openDailyPlanDetails(plan) {
+    selectedDailyDetail.value = { ...plan }
+    isEditingDailyPlan.value = false
+    error.value = ''
+    dailyDetailDialog.value?.showModal()
+}
+
+function closeDailyPlanDetails() {
+    dailyDetailDialog.value?.close()
+    selectedDailyDetail.value = null
+    isEditingDailyPlan.value = false
+    error.value = ''
+}
+
+function cancelEditingDailyPlan() {
+    const original = dailyPlans.value.find(plan => plan.id === selectedDailyDetail.value?.id)
+    if (original) selectedDailyDetail.value = { ...original }
+    isEditingDailyPlan.value = false
+    error.value = ''
+}
+
+async function saveDailyPlanEdits() {
+    const plan = selectedDailyDetail.value
+    if (!plan || !plan.subject_id) {
+        error.value = '과목을 선택해주세요.'
+        return
+    }
+    isSavingDailyPlan.value = true
+    error.value = ''
+    try {
+        await request(`/api/studyPlan/daily/${plan.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ subject_id: Number(plan.subject_id), detail: plan.detail || '' }),
+        })
+        await loadPlans()
+        closeDailyPlanDetails()
+    } catch (err) {
+        error.value = err.message || '계획을 수정하지 못했습니다.'
+    } finally {
+        isSavingDailyPlan.value = false
+    }
 }
 
 async function request(url, options = {}) {
@@ -177,7 +278,7 @@ async function loadSubjects() {
 async function savePlan() {
     // 현재 보기 모드에 따라 주간 또는 날짜별 계획을 생성합니다.
     if (!form.value.subject_id
-        || (view.value === 'weekly' && (!form.value.start_time || !form.value.end_time))
+        || (view.value === 'weekly' && (!form.value.days_of_week.length || !form.value.start_time || !form.value.end_time))
         || (view.value === 'daily' && !form.value.detail.trim())) {
         error.value = view.value === 'weekly'
             ? '과목과 시작·종료 시간을 입력해주세요.'
@@ -189,15 +290,17 @@ async function savePlan() {
     error.value = ''
     try {
         if (view.value === 'weekly') {
-            await request('/api/studyPlan/weekly', {
-                method: 'POST',
-                body: JSON.stringify({
-                    subject_id: Number(form.value.subject_id),
-                    day_of_week: Number(form.value.day_of_week),
-                    start_time: form.value.start_time,
-                    end_time: form.value.end_time,
-                }),
-            })
+            for (const day of form.value.days_of_week) {
+                await request('/api/studyPlan/weekly', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        subject_id: Number(form.value.subject_id),
+                        day_of_week: day,
+                        start_time: form.value.start_time,
+                        end_time: form.value.end_time,
+                    }),
+                })
+            }
         } else {
             await request('/api/studyPlan/daily', {
                 method: 'POST',
@@ -288,6 +391,7 @@ onUnmounted(() => {
     // 화면을 벗어날 때 열린 모달이 있으면 정리합니다.
     if (dialog.value?.open) dialog.value.close()
     if (dailyDeleteDialog.value?.open) dailyDeleteDialog.value.close()
+    if (dailyDetailDialog.value?.open) dailyDetailDialog.value.close()
     if (planDetailDialog.value?.open) planDetailDialog.value.close()
 })
 </script>
@@ -401,6 +505,18 @@ onUnmounted(() => {
                             <span v-if="plan.detail">{{ plan.detail }}</span>
                         </div>
                         <button
+                            type="button"
+                            class="daily-edit-button"
+                            :aria-label="`${plan.subject_name} 계획 수정`"
+                            title="계획 수정"
+                            @click="openDailyPlanDetails(plan); isEditingDailyPlan = true"
+                        >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+                            </svg>
+                        </button>
+                        <button
                             class="delete-button"
                             aria-label="계획 삭제"
                             @click="confirmDailyPlanDeletion(plan)"
@@ -443,9 +559,20 @@ onUnmounted(() => {
                 </label>
                 <label v-if="view === 'weekly'">
                     요일 선택
-                    <select v-model.number="form.day_of_week" required>
-                        <option v-for="(day, index) in days" :key="day" :value="index">{{ day }}요일</option>
-                    </select>
+                    <div class="weekday-selector" role="group" aria-label="반복할 요일 선택">
+                        <button
+                            v-for="(day, index) in days"
+                            :key="day"
+                            type="button"
+                            class="weekday-button"
+                            :class="[
+                                { selected: form.days_of_week.includes(index) },
+                                index === 0 ? 'sunday' : index === 6 ? 'saturday' : '',
+                            ]"
+                            :aria-pressed="form.days_of_week.includes(index)"
+                            @click="togglePlanDay(index)"
+                        >{{ day }}</button>
+                    </div>
                 </label>
                 <div v-if="view === 'weekly'" class="time-fields">
                     <label>시작 시간<input v-model="form.start_time" type="time" required></label>
@@ -491,6 +618,74 @@ onUnmounted(() => {
         </dialog>
 
         <dialog
+            ref="dailyDetailDialog"
+            class="plan-dialog plan-detail-dialog"
+            aria-labelledby="daily-plan-detail-title"
+            @click="$event.target === $event.currentTarget && closeDailyPlanDetails()"
+        >
+            <template v-if="selectedDailyDetail">
+                <div class="dialog-heading">
+                    <div>
+                        <p class="eyebrow">DAILY PLAN</p>
+                        <h2 id="daily-plan-detail-title">{{ isEditingDailyPlan ? '계획 수정' : '계획 상세 정보' }}</h2>
+                    </div>
+                    <div class="dialog-heading-actions">
+                        <button
+                            v-if="!isEditingDailyPlan"
+                            type="button"
+                            class="dialog-edit"
+                            aria-label="계획 수정"
+                            title="계획 수정"
+                            @click="isEditingDailyPlan = true; error = ''"
+                        >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+                            </svg>
+                        </button>
+                        <button type="button" class="dialog-close" aria-label="닫기" @click="closeDailyPlanDetails">×</button>
+                    </div>
+                </div>
+                <form v-if="isEditingDailyPlan" class="weekly-plan-edit-form" @submit.prevent="saveDailyPlanEdits">
+                    <label>
+                        과목
+                        <select v-model.number="selectedDailyDetail.subject_id" required>
+                            <option v-for="subject in subjects" :key="subject.id" :value="Number(subject.id)">
+                                {{ subject.subject_name }}
+                            </option>
+                        </select>
+                    </label>
+                    <label>
+                        세부 내용
+                        <input v-model="selectedDailyDetail.detail" type="text" maxlength="100" placeholder="오늘 할 일을 적어주세요">
+                    </label>
+                    <p class="selected-date">{{ dateLabel }}</p>
+                    <div class="dialog-actions">
+                        <button type="button" class="cancel-button" :disabled="isSavingDailyPlan" @click="cancelEditingDailyPlan">취소</button>
+                        <button type="submit" class="save-button" :disabled="isSavingDailyPlan">
+                            {{ isSavingDailyPlan ? '저장 중…' : '저장' }}
+                        </button>
+                    </div>
+                </form>
+                <dl v-else class="plan-details">
+                    <dt>과목</dt>
+                    <dd>
+                        <span class="detail-subject-color" :style="{ backgroundColor: subjectMap.get(Number(selectedDailyDetail.subject_id))?.subject_color || '#6366f1' }"></span>
+                        {{ subjectMap.get(Number(selectedDailyDetail.subject_id))?.subject_name || selectedDailyDetail.subject_name }}
+                    </dd>
+                    <dt>날짜</dt>
+                    <dd>{{ dateLabel }}</dd>
+                    <dt>세부 내용</dt>
+                    <dd>{{ selectedDailyDetail.detail || '등록된 세부 내용이 없습니다.' }}</dd>
+                </dl>
+                <p v-if="error" class="plan-error" role="alert">{{ error }}</p>
+                <div v-if="!isEditingDailyPlan" class="dialog-actions">
+                    <button type="button" class="cancel-button" @click="closeDailyPlanDetails">닫기</button>
+                </div>
+            </template>
+        </dialog>
+
+        <dialog
             ref="planDetailDialog"
             class="plan-dialog plan-detail-dialog"
             aria-labelledby="plan-detail-title"
@@ -500,11 +695,52 @@ onUnmounted(() => {
                 <div class="dialog-heading">
                     <div>
                         <p class="eyebrow">WEEKLY PLAN</p>
-                        <h2 id="plan-detail-title">계획 상세 정보</h2>
+                        <h2 id="plan-detail-title">{{ isEditingWeeklyPlan ? '계획 수정' : '계획 상세 정보' }}</h2>
                     </div>
-                    <button type="button" class="dialog-close" aria-label="닫기" @click="closeWeeklyPlanDetails">×</button>
+                    <div class="dialog-heading-actions">
+                        <button
+                            v-if="!isEditingWeeklyPlan"
+                            type="button"
+                            class="dialog-edit"
+                            aria-label="계획 수정"
+                            title="계획 수정"
+                            @click="startEditingWeeklyPlan"
+                        >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+                            </svg>
+                        </button>
+                        <button type="button" class="dialog-close" aria-label="닫기" @click="closeWeeklyPlanDetails">×</button>
+                    </div>
                 </div>
-                <dl class="plan-details">
+                <form v-if="isEditingWeeklyPlan" class="weekly-plan-edit-form" @submit.prevent="saveWeeklyPlanEdits">
+                    <label>
+                        과목
+                        <select v-model.number="selectedWeeklyPlan.subject_id" required>
+                            <option v-for="subject in subjects" :key="subject.id" :value="Number(subject.id)">
+                                {{ subject.subject_name }}
+                            </option>
+                        </select>
+                    </label>
+                    <label>
+                        요일
+                        <select v-model.number="selectedWeeklyPlan.day_of_week" required>
+                            <option v-for="(day, index) in days" :key="day" :value="index">{{ day }}요일</option>
+                        </select>
+                    </label>
+                    <div class="time-fields">
+                        <label>시작 시간<input v-model="selectedWeeklyPlan.start_time" type="time" required></label>
+                        <label>끝 시간<input v-model="selectedWeeklyPlan.end_time" type="time" required></label>
+                    </div>
+                    <div class="dialog-actions">
+                        <button type="button" class="cancel-button" :disabled="isSavingWeeklyPlan" @click="cancelEditingWeeklyPlan">취소</button>
+                        <button type="submit" class="save-button" :disabled="isSavingWeeklyPlan">
+                            {{ isSavingWeeklyPlan ? '저장 중…' : '저장' }}
+                        </button>
+                    </div>
+                </form>
+                <dl v-else class="plan-details">
                     <dt>과목</dt>
                     <dd>
                         <span class="detail-subject-color" :style="{ backgroundColor: subjectMap.get(Number(selectedWeeklyPlan.subject_id))?.subject_color || '#6366f1' }"></span>
@@ -516,7 +752,7 @@ onUnmounted(() => {
                     <dd>{{ timeLabel(selectedWeeklyPlan.start_time) }} – {{ timeLabel(selectedWeeklyPlan.end_time) }}</dd>
                 </dl>
                 <p v-if="error" class="plan-error" role="alert">{{ error }}</p>
-                <div class="dialog-actions">
+                <div v-if="!isEditingWeeklyPlan" class="dialog-actions">
                     <button class="delete-plan-button" :disabled="isDeletingPlan" @click="deleteSelectedWeeklyPlan">
                         {{ isDeletingPlan ? '삭제 중…' : '삭제' }}
                     </button>
@@ -821,6 +1057,34 @@ onUnmounted(() => {
     min-width: 0;
 }
 
+.daily-edit-button {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    flex: none;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+    border-radius: 9px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+.daily-edit-button svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+}
+
+.daily-edit-button:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
 .daily-subject strong {
     font-size: 14px;
 }
@@ -909,6 +1173,55 @@ onUnmounted(() => {
     cursor: pointer;
 }
 
+.dialog-heading-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dialog-edit {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+    border-radius: 10px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+.dialog-edit svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+}
+
+.weekly-plan-edit-form > label {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.weekly-plan-edit-form select,
+.weekly-plan-edit-form input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+    border-radius: 9px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font: inherit;
+}
+
 .plan-dialog label {
     display: grid;
     gap: 8px;
@@ -928,6 +1241,49 @@ onUnmounted(() => {
     background: var(--bg-color);
     color: var(--text-color);
     font: inherit;
+}
+
+.weekday-selector {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.weekday-button {
+    min-width: 0;
+    height: 40px;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent);
+    border-radius: 10px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.weekday-button.selected {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.weekday-button.sunday {
+    color: #e5484d;
+}
+
+.weekday-button.saturday {
+    color: #3b6fe0;
+}
+
+.weekday-button.selected.sunday,
+.weekday-button.selected.saturday {
+    color: #fff;
+}
+
+.weekday-button:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
 }
 
 .time-fields {

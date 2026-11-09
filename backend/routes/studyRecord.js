@@ -11,6 +11,7 @@ const {
     addStudyRecordRestTime,
     finishActiveStudyRecord,
     deleteStudyRecord,
+    shortenStudyRecordEndTime,
     deleteActiveStudyRecord,
 } = require('../database/db');
 const { getSession } = require('./signin');
@@ -165,6 +166,26 @@ router.post('/:recordId/finish', async (req, res, next) => {
             return;
         }
         res.send({ finished: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.patch('/:recordId/end-time', async (req, res, next) => {
+    const session = requireSession(req, res);
+    if (!session) return;
+    const recordId = Number(req.params.recordId);
+    const { end_time: endTime } = req.body;
+    if (!Number.isInteger(recordId) || recordId < 1 || !isUtcDateTime(endTime)) {
+        res.status(400).send({ message: '변경할 종료 시각을 확인해주세요.' });
+        return;
+    }
+    try {
+        const result = await shortenStudyRecordEndTime(session.userId, recordId, endTime);
+        if (!result.found) return res.status(404).send({ message: '수정할 공부 기록을 찾을 수 없습니다.' });
+        if (result.invalidRange) return res.status(400).send({ message: '종료 시각은 시작 시각보다 뒤이고 기존 종료 시각보다 빨라야 합니다.' });
+        if (result.overlaps) return res.status(409).send({ message: '변경한 시간대가 다른 공부 기록과 겹칩니다.' });
+        res.send({ updated: true });
     } catch (error) {
         next(error);
     }

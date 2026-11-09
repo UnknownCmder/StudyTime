@@ -337,6 +337,50 @@ async function deleteStudyRecord(userId, recordId) {
     }
 }
 
+// 완료된 기록의 종료 시각을 앞당기고 관련 공부 시간 누계를 다시 계산합니다.
+async function shortenStudyRecordEndTime(userId, recordId, endTime) {
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        await connection.execute('SELECT id FROM users WHERE id = ? FOR UPDATE', [userId]);
+        const [records] = await connection.execute(`SELECT subject_id, start_time, end_time
+            FROM study_record WHERE id = ? AND user_num_id = ? FOR UPDATE`, [recordId, userId]);
+        const record = records[0];
+        if (!record || !record.subject_id || !record.end_time) {
+            await connection.rollback();
+            return { found: false };
+        }
+
+        const nextEnd = new Date(endTime);
+        const currentEnd = databaseDateTimeToDate(record.end_time);
+        const start = databaseDateTimeToDate(record.start_time);
+        if (nextEnd <= start || nextEnd >= currentEnd) {
+            await connection.rollback();
+            return { found: true, invalidRange: true };
+        }
+
+        const [overlaps] = await connection.execute(`SELECT id FROM study_record
+            WHERE user_num_id = ? AND id <> ? AND end_time IS NOT NULL
+                AND start_time < ? AND end_time > ? LIMIT 1`,
+        [userId, recordId, toDatabaseDateTime(nextEnd), toDatabaseDateTime(start)]);
+        if (overlaps.length) {
+            await connection.rollback();
+            return { found: true, overlaps: true };
+        }
+
+        await connection.execute('UPDATE study_record SET end_time = ? WHERE id = ? AND user_num_id = ?',
+            [toDatabaseDateTime(nextEnd), recordId, userId]);
+        await saveStudyTimeTotals(connection, userId, record.subject_id, getUtcStudyPeriods(record.start_time));
+        await connection.commit();
+        return { found: true, updated: true };
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
 // 활성 상태인 기록에 한해서만 삭제할 수 있게 합니다.
 async function deleteActiveStudyRecord(userId, recordId) {
     // 진행 중 기록이나 과목/설명을 아직 저장하지 않은 중지 기록을 취소할 수 있습니다.
@@ -381,6 +425,6 @@ function deleteExpiredSessions(callback) {
 module.exports = {
     getStudyRecords, getUserSubjects, createUserSubject, createActiveStudyRecord,
     getActiveStudyRecord, setStudyRecordPaused, stopActiveStudyRecord, addStudyRecordRestTime,
-    finishActiveStudyRecord, deleteStudyRecord, deleteActiveStudyRecord,
+    finishActiveStudyRecord, deleteStudyRecord, shortenStudyRecordEndTime, deleteActiveStudyRecord,
     getSession, setSession, deleteSession, touchSession, deleteExpiredSessions,
 };

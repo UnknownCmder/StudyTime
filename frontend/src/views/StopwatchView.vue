@@ -600,9 +600,10 @@ h1 {
   }
 
   .stopwatch-shell {
-    min-height: calc(100dvh - 120px);
+    min-height: 0;
     padding: 22px 14px;
     border-radius: 24px;
+    align-self: flex-start;
   }
 
   h1 {
